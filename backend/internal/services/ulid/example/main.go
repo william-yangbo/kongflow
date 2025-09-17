@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"kongflow/backend/internal/ulid"
+	"kongflow/backend/internal/services/ulid"
 )
 
 func main() {

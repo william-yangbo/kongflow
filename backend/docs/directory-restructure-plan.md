@@ -19,29 +19,39 @@
 - **logger** - 日志记录服务
 - **ulid** - ULID 生成工具
 
-## 🏗️ 建议的新目录结构
+## 🏗️ 建议的新目录结构 (更新版 - 完全对齐 trigger.dev)
 
-```
+根据 trigger.dev 的实际目录结构分析，所有服务层组件都应该放在 services/目录下：
+
+**trigger.dev 参考:**
+
+- `apps/webapp/app/services/logger.ts`
+- `apps/webapp/app/services/ulid.server.ts`
+- `apps/webapp/app/services/impersonation.server.ts`
+- `apps/webapp/app/services/redirectTo.server.ts`
+- `apps/webapp/app/services/sessionStorage.server.ts`
+
+**KongFlow 最终结构:**
+
+````
 kongflow/backend/internal/
-├── services/           # trigger.dev 迁移的业务服务
+├── services/           # 所有服务层组件 (对齐trigger.dev)
 │   ├── impersonation/  # 用户伪装服务
 │   ├── redirectto/     # 重定向管理服务
 │   ├── sessionstorage/ # Session存储服务
 │   ├── apivote/        # API投票服务
-│   └── secretstore/    # 密钥存储服务
-├── database/           # 数据库基础设施
-├── logger/             # 日志基础设施
-└── ulid/               # ULID工具
-```
-
-## ✅ 重构执行结果
+│   ├── secretstore/    # 密钥存储服务
+│   ├── logger/         # 日志服务 (对齐trigger.dev)
+│   └── ulid/           # ULID工具 (对齐trigger.dev)
+└── database/           # 纯基础设施 (数据库连接)
+```## ✅ 重构执行结果
 
 ### 📊 重构状态: 完成 ✅
 
 #### 执行步骤:
 
 1. ✅ **创建目录结构** - `internal/services/` 目录已创建
-2. ✅ **迁移服务文件** - 所有 5 个服务已成功迁移
+2. ✅ **迁移服务文件** - 所有7个服务已成功迁移 (包括logger和ulid)
 3. ✅ **更新 import 路径** - 所有引用已更新到新路径
 4. ✅ **验证功能** - 所有测试通过，构建成功
 
@@ -52,6 +62,8 @@ kongflow/backend/internal/
 - ✅ `internal/sessionstorage` → `internal/services/sessionstorage`
 - ✅ `internal/apivote` → `internal/services/apivote`
 - ✅ `internal/secretstore` → `internal/services/secretstore`
+- ✅ `internal/logger` → `internal/services/logger` (trigger.dev对齐)
+- ✅ `internal/ulid` → `internal/services/ulid` (trigger.dev对齐)
 
 #### 更新的文件:
 
@@ -75,7 +87,7 @@ kongflow/backend/internal/
 
 # 项目构建成功
 ✅ go build ./... - 无错误
-```
+````
 
 ## 📋 重构执行计划 (已完成)
 

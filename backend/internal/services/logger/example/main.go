@@ -1,7 +1,7 @@
 package main
 
 import (
-	"kongflow/backend/internal/logger"
+	"kongflow/backend/internal/services/logger"
 )
 
 func main() {

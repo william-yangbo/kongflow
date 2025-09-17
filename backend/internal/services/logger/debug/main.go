@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"kongflow/backend/internal/logger"
+	"kongflow/backend/internal/services/logger"
 )
 
 func main() {
