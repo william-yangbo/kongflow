@@ -13,9 +13,6 @@ var ErrSecretNotFound = errors.New("secret not found")
 type Repository interface {
 	GetSecret(ctx context.Context, key string) (*SecretStore, error)
 	UpsertSecret(ctx context.Context, key string, value []byte) error
-	DeleteSecret(ctx context.Context, key string) error
-	ListSecretKeys(ctx context.Context) ([]ListSecretStoreKeysRow, error)
-	GetSecretCount(ctx context.Context) (int64, error)
 }
 
 type repository struct {
@@ -44,16 +41,4 @@ func (r *repository) UpsertSecret(ctx context.Context, key string, value []byte)
 		Key:   key,
 		Value: value,
 	})
-}
-
-func (r *repository) DeleteSecret(ctx context.Context, key string) error {
-	return r.queries.DeleteSecretStore(ctx, key)
-}
-
-func (r *repository) ListSecretKeys(ctx context.Context) ([]ListSecretStoreKeysRow, error) {
-	return r.queries.ListSecretStoreKeys(ctx)
-}
-
-func (r *repository) GetSecretCount(ctx context.Context) (int64, error) {
-	return r.queries.GetSecretStoreCount(ctx)
 }

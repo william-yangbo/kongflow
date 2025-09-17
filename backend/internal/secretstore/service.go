@@ -53,35 +53,3 @@ func (s *Service) GetSecretOrThrow(ctx context.Context, key string, target inter
 	}
 	return nil
 }
-
-// DeleteSecret 删除密钥
-func (s *Service) DeleteSecret(ctx context.Context, key string) error {
-	if err := s.repo.DeleteSecret(ctx, key); err != nil {
-		return fmt.Errorf("failed to delete secret %s: %w", key, err)
-	}
-	return nil
-}
-
-// ListSecretKeys 列出所有密钥
-func (s *Service) ListSecretKeys(ctx context.Context) ([]string, error) {
-	rows, err := s.repo.ListSecretKeys(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list secret keys: %w", err)
-	}
-
-	keys := make([]string, len(rows))
-	for i, row := range rows {
-		keys[i] = row.Key
-	}
-
-	return keys, nil
-}
-
-// GetSecretCount 获取密钥总数
-func (s *Service) GetSecretCount(ctx context.Context) (int64, error) {
-	count, err := s.repo.GetSecretCount(ctx)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get secret count: %w", err)
-	}
-	return count, nil
-}

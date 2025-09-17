@@ -112,27 +112,13 @@ func (suite *IntegrationTestSuite) TestMultipleSecretsManagement() {
 	}
 
 	// 1. 批量设置密钥
+	var err error
 	for key, value := range secrets {
-		err := suite.service.SetSecret(ctx, key, value)
+		err = suite.service.SetSecret(ctx, key, value)
 		assert.NoError(suite.T(), err)
 	}
 
-	// 2. 验证密钥数量
-	count, err := suite.service.GetSecretCount(ctx)
-	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), int64(len(secrets)), count)
-
-	// 3. 列出所有密钥
-	keys, err := suite.service.ListSecretKeys(ctx)
-	assert.NoError(suite.T(), err)
-	assert.Len(suite.T(), keys, len(secrets))
-
-	// 验证所有密钥都在列表中
-	for expectedKey := range secrets {
-		assert.Contains(suite.T(), keys, expectedKey)
-	}
-
-	// 4. 逐个验证每个密钥的值
+	// 2. 验证每个密钥的值
 	// 数据库配置
 	var dbConfig map[string]interface{}
 	err = suite.service.GetSecret(ctx, "database.postgres", &dbConfig)
@@ -153,18 +139,15 @@ func (suite *IntegrationTestSuite) TestMultipleSecretsManagement() {
 	assert.True(suite.T(), flags["enable_new_ui"])
 	assert.False(suite.T(), flags["debug_mode"])
 
-	// 5. 删除一个密钥
-	err = suite.service.DeleteSecret(ctx, "api.key")
+	// 3. 测试 GetSecretOrThrow
+	var dbConfigThrow map[string]interface{}
+	err = suite.service.GetSecretOrThrow(ctx, "database.postgres", &dbConfigThrow)
 	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), dbConfig, dbConfigThrow)
 
-	// 验证删除后的数量
-	count, err = suite.service.GetSecretCount(ctx)
-	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), int64(2), count)
-
-	// 验证被删除的密钥无法获取
-	var deletedKey string
-	err = suite.service.GetSecret(ctx, "api.key", &deletedKey)
+	// 4. 测试不存在的密钥
+	var nonExistent string
+	err = suite.service.GetSecret(ctx, "non.existent", &nonExistent)
 	assert.Error(suite.T(), err)
 }
 

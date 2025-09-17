@@ -114,25 +114,8 @@ func main() {
 		fmt.Printf("✅ API 密钥 (脱敏): %v\n", maskedKeys)
 	}
 
-	// 4. 列出所有密钥
-	fmt.Println("\n4. 列出所有密钥...")
-	keys, err := service.ListSecretKeys(ctx)
-	if err != nil {
-		log.Printf("Failed to list keys: %v", err)
-	} else {
-		fmt.Printf("✅ 共有 %d 个密钥: %v\n", len(keys), keys)
-	}
-
-	// 5. 获取密钥统计
-	count, err := service.GetSecretCount(ctx)
-	if err != nil {
-		log.Printf("Failed to get count: %v", err)
-	} else {
-		fmt.Printf("✅ 密钥总数: %d\n", count)
-	}
-
-	// 6. 更新密钥
-	fmt.Println("\n5. 更新密钥...")
+	// 4. 更新密钥
+	fmt.Println("\n4. 更新密钥...")
 	updatedGithubConfig := map[string]interface{}{
 		"client_id":     "updated_github_client_789",
 		"client_secret": "updated_github_secret_000",
@@ -155,8 +138,8 @@ func main() {
 		}
 	}
 
-	// 7. 测试 GetSecretOrThrow
-	fmt.Println("\n6. 测试 GetSecretOrThrow...")
+	// 5. 测试 GetSecretOrThrow
+	fmt.Println("\n5. 测试 GetSecretOrThrow...")
 	var testConfig map[string]interface{}
 	err = service.GetSecretOrThrow(ctx, "oauth.github", &testConfig)
 	if err != nil {
@@ -172,7 +155,7 @@ func main() {
 		fmt.Printf("✅ 正确处理不存在的密钥: %v\n", err)
 	}
 
-	// 8. 演示完成
+	// 6. 演示完成
 	fmt.Println("\n=== 演示完成 ===")
 	fmt.Println("✅ SecretStore MVP 实现成功！")
 	fmt.Println("✅ 支持 JSONB 存储和类型安全的数据访问")
