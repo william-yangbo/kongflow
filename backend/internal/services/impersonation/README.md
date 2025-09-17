@@ -18,7 +18,7 @@ package main
 
 import (
     "net/http"
-    "kongflow/backend/internal/impersonation"
+    "kongflow/backend/internal/services/impersonation"
 )
 
 func main() {

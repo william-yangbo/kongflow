@@ -15,7 +15,7 @@ This package provides different levels of alignment with trigger.dev's redirectT
 ### Go-Idiomatic Service (85% Alignment)
 
 - **Cookie Name**: `__redirectTo` (exact match)
-- **Expiration**: 24 hours (ONE_DAY = 60 _ 60 _ 24)
+- **Expiration**: 24 hours (ONE*DAY = 60 * 60 \_ 24)
 - **Security Attributes**: HttpOnly=true, SameSite=Lax
 - **Core Functionality**: Set, Get, Clear operations
 - **Differences**: Go-style API, automatic cookie management
@@ -137,7 +137,7 @@ package main
 
 import (
     "net/http"
-    "kongflow/backend/internal/redirectto"
+    "kongflow/backend/internal/services/redirectto"
 )
 
 func main() {
@@ -183,7 +183,7 @@ package main
 
 import (
     "net/http"
-    "kongflow/backend/internal/redirectto"
+    "kongflow/backend/internal/services/redirectto"
 )
 
 func main() {

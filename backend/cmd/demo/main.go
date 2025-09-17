@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"kongflow/backend/internal/database"
-	"kongflow/backend/internal/secretstore"
+	"kongflow/backend/internal/services/secretstore"
 )
 
 func main() {

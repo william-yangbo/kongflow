@@ -26,7 +26,7 @@ package main
 
 import (
     "net/http"
-    "kongflow/backend/internal/sessionstorage"
+    "kongflow/backend/internal/services/sessionstorage"
 )
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {

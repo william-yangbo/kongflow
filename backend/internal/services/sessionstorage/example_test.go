@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 
-	"kongflow/backend/internal/sessionstorage"
+	"kongflow/backend/internal/services/sessionstorage"
 )
 
 // ExampleGetUserSession demonstrates how to retrieve user session data

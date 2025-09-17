@@ -120,7 +120,7 @@ func (s *Service) GetSecretCount(ctx context.Context) (int64, error)
 ```go
 import (
     "kongflow/backend/internal/database"
-    "kongflow/backend/internal/secretstore"
+    "kongflow/backend/internal/services/secretstore"
 )
 
 // 初始化
