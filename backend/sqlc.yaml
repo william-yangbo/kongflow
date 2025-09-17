@@ -18,6 +18,23 @@ sql:
         emit_interface: true
         emit_prepared_queries: false
         emit_exact_table_names: true
+        omit_unused_structs: true
+
+  # ApiVote Service - trigger.dev ApiVoteService migration
+  - name: apivote
+    engine: 'postgresql'
+    queries: './internal/apivote/queries'
+    schema: './db/migrations'
+    gen:
+      go:
+        out: './internal/apivote'
+        package: 'apivote'
+        sql_package: 'pgx/v5'
+        emit_json_tags: true
+        emit_interface: true
+        emit_prepared_queries: false
+        emit_exact_table_names: true
+        omit_unused_structs: true
 
   # JobQueue Service - future trigger.dev job system
   # - name: jobqueue
