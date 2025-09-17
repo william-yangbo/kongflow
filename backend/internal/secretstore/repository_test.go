@@ -29,7 +29,7 @@ func (suite *RepositoryTestSuite) TearDownSuite() {
 
 func (suite *RepositoryTestSuite) SetupTest() {
 	// 清理测试数据
-	_, err := suite.db.Pool.Exec(context.Background(), "DELETE FROM secret_store")
+	_, err := suite.db.Pool.Exec(context.Background(), `DELETE FROM "SecretStore"`)
 	require.NoError(suite.T(), err)
 }
 

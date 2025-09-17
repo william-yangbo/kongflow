@@ -10,7 +10,7 @@ import (
 )
 
 const getSecretStore = `-- name: GetSecretStore :one
-SELECT key, value, created_at, updated_at FROM secret_store WHERE key = $1
+SELECT key, value, "createdAt", "updatedAt" FROM "SecretStore" WHERE "key" = $1
 `
 
 func (q *Queries) GetSecretStore(ctx context.Context, key string) (SecretStore, error) {
@@ -26,10 +26,11 @@ func (q *Queries) GetSecretStore(ctx context.Context, key string) (SecretStore, 
 }
 
 const upsertSecretStore = `-- name: UpsertSecretStore :exec
-INSERT INTO secret_store (key, value) VALUES ($1, $2)
-ON CONFLICT (key) DO UPDATE SET
-    value = EXCLUDED.value,
-    updated_at = NOW()
+INSERT INTO "SecretStore" ("key", "value", "createdAt", "updatedAt") 
+VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+ON CONFLICT ("key") DO UPDATE SET
+    "value" = EXCLUDED."value",
+    "updatedAt" = CURRENT_TIMESTAMP
 `
 
 type UpsertSecretStoreParams struct {

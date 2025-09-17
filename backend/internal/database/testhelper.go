@@ -78,32 +78,15 @@ func (db *TestDB) Cleanup(t *testing.T) {
 
 func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 	migration := `
-		CREATE TABLE IF NOT EXISTS secret_store (
-		    key TEXT PRIMARY KEY,
-		    value JSONB NOT NULL,
-		    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-		    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+		CREATE TABLE IF NOT EXISTS "SecretStore" (
+		    "key" TEXT NOT NULL,
+		    "value" JSONB NOT NULL,
+		    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		    "updatedAt" TIMESTAMP(3) NOT NULL
 		);
 
-		-- Create index for faster lookups
-		CREATE INDEX IF NOT EXISTS idx_secret_store_created_at ON secret_store(created_at);
-		CREATE INDEX IF NOT EXISTS idx_secret_store_updated_at ON secret_store(updated_at);
-
-		-- Create function to update updated_at automatically
-		CREATE OR REPLACE FUNCTION update_updated_at_column()
-		RETURNS TRIGGER AS $$
-		BEGIN
-		    NEW.updated_at = NOW();
-		    RETURN NEW;
-		END;
-		$$ language 'plpgsql';
-
-		-- Create trigger to auto-update updated_at
-		DROP TRIGGER IF EXISTS update_secret_store_updated_at ON secret_store;
-		CREATE TRIGGER update_secret_store_updated_at
-		    BEFORE UPDATE ON secret_store
-		    FOR EACH ROW
-		    EXECUTE FUNCTION update_updated_at_column();
+		-- CreateIndex
+		CREATE UNIQUE INDEX IF NOT EXISTS "SecretStore_key_key" ON "SecretStore"("key");
 	`
 	_, err := pool.Exec(ctx, migration)
 	if err != nil {

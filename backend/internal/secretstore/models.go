@@ -9,8 +9,8 @@ import (
 )
 
 type SecretStore struct {
-	Key       string             `json:"key"`
-	Value     []byte             `json:"value"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	Key       string           `json:"key"`
+	Value     []byte           `json:"value"`
+	CreatedAt pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt pgtype.Timestamp `json:"updatedAt"`
 }
