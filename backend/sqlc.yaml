@@ -1,18 +1,50 @@
 version: '2'
 
-# Multi-service SQLC configuration
+# Hybrid SQLC configuration - Shared base layer + Service specific layer
 # Supporting scalable service architecture for KongFlow
 
 sql:
-  # SecretStore Service - trigger.dev compatible
-  - name: secretstore
+  # Shared Database Layer - Core entities (User, Organization, Project, RuntimeEnvironment)
+  - name: shared
     engine: 'postgresql'
-    queries: './internal/secretstore/queries'
+    queries: './internal/shared/queries'
     schema: './db/migrations'
     gen:
       go:
-        out: './internal/secretstore'
+        out: './internal/shared'
+        package: 'shared'
+        sql_package: 'pgx/v5'
+        emit_json_tags: true
+        emit_interface: true
+        emit_prepared_queries: false
+        emit_exact_table_names: true
+        omit_unused_structs: true
+
+  # SecretStore Service - trigger.dev compatible
+  - name: secretstore
+    engine: 'postgresql'
+    queries: './internal/services/secretstore/queries'
+    schema: './db/migrations'
+    gen:
+      go:
+        out: './internal/services/secretstore'
         package: 'secretstore'
+        sql_package: 'pgx/v5'
+        emit_json_tags: true
+        emit_interface: true
+        emit_prepared_queries: false
+        emit_exact_table_names: true
+        omit_unused_structs: true
+
+  # ApiAuth Service - trigger.dev apiAuth.server.ts migration
+  - name: apiauth
+    engine: 'postgresql'
+    queries: './internal/services/apiauth/queries'
+    schema: './db/migrations'
+    gen:
+      go:
+        out: './internal/services/apiauth'
+        package: 'apiauth'
         sql_package: 'pgx/v5'
         emit_json_tags: true
         emit_interface: true
@@ -23,11 +55,11 @@ sql:
   # ApiVote Service - trigger.dev ApiVoteService migration
   - name: apivote
     engine: 'postgresql'
-    queries: './internal/apivote/queries'
+    queries: './internal/services/apivote/queries'
     schema: './db/migrations'
     gen:
       go:
-        out: './internal/apivote'
+        out: './internal/services/apivote'
         package: 'apivote'
         sql_package: 'pgx/v5'
         emit_json_tags: true

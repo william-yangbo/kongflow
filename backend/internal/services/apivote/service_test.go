@@ -16,7 +16,8 @@ func TestApiVoteService_Core(t *testing.T) {
 	}
 
 	// 使用现有testhelper，复用优化后的基础设施
-	db := database.SetupTestDBWithMigrations(t, "api")
+	// 注意：apivote 服务现在依赖共享实体，需要运行所有迁移
+	db := database.SetupTestDBWithMigrations(t, "")
 	defer db.Cleanup(t)
 
 	service := NewService(db.Pool)

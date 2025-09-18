@@ -36,9 +36,9 @@ func SetupTestDBWithMigrations(t *testing.T, migrationPattern string) *TestDB {
 func setupTestDBInternal(t *testing.T, migrationPattern string) *TestDB {
 	ctx := context.Background()
 
-	// 启动 PostgreSQL TestContainer
-	container, err := postgres.RunContainer(ctx,
-		testcontainers.WithImage("postgres:15-alpine"),
+	// 启动 PostgreSQL TestContainer (使用新的 Run 方法)
+	container, err := postgres.Run(ctx,
+		"postgres:15-alpine",
 		postgres.WithDatabase("testdb"),
 		postgres.WithUsername("testuser"),
 		postgres.WithPassword("testpass"),

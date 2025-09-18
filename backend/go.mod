@@ -4,6 +4,7 @@ go 1.23.6
 
 require (
 	github.com/alecthomas/chroma/v2 v2.2.0
+	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/sessions v1.4.0
 	github.com/jackc/pgx/v5 v5.7.6
