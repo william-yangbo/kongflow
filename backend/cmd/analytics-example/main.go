@@ -8,6 +8,9 @@ import (
 	"time"
 
 	"kongflow/backend/internal/services/analytics"
+	"kongflow/backend/internal/shared"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // Example demonstrating how to use the analytics service
@@ -30,31 +33,40 @@ func main() {
 
 	// Example 1: User registration flow
 	fmt.Println("=== User Registration Flow ===")
-	userData := &analytics.UserData{
-		ID:                   "user_12345",
-		Email:                "john.doe@example.com",
-		Name:                 "John Doe",
-		AuthenticationMethod: "email",
-		Admin:                false,
-		CreatedAt:            time.Now(),
+
+	// Create a sample UUID for the user
+	userUUID := pgtype.UUID{}
+	userUUID.Scan("12345678-1234-1234-1234-123456789012") // In real usage, this would be a proper UUID
+
+	userData := &shared.Users{
+		ID:        userUUID,
+		Email:     "john.doe@example.com",
+		Name:      pgtype.Text{String: "John Doe", Valid: true},
+		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 	}
 
-	// Track user identification (new user)
+	// Track user identification (new user) - userData is already *shared.Users which is analytics.User
 	err = service.UserIdentify(ctx, userData, true)
 	if err != nil {
 		log.Printf("Failed to identify user: %v", err)
 	} else {
-		fmt.Printf("✓ Identified new user: %s\n", userData.Name)
+		fmt.Printf("✓ Identified new user: %s\n", userData.Name.String)
 	}
 
 	// Example 2: Organization creation
 	fmt.Println("\n=== Organization Creation ===")
-	orgData := &analytics.OrganizationData{
-		ID:        "org_67890",
+
+	// Create a sample UUID for the organization
+	orgUUID := pgtype.UUID{}
+	orgUUID.Scan("87654321-4321-4321-4321-210987654321")
+
+	orgData := &shared.Organizations{
+		ID:        orgUUID,
 		Title:     "Acme Corporation",
 		Slug:      "acme-corp",
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 	}
 
 	// Identify organization for grouping
@@ -65,21 +77,28 @@ func main() {
 		fmt.Printf("✓ Identified organization: %s\n", orgData.Title)
 	}
 
-	// Track organization creation event
-	err = service.OrganizationNew(ctx, userData.ID, orgData, 1)
+	// Track organization creation event (convert UUID to string)
+	err = service.OrganizationNew(ctx, userData.ID.String(), orgData, 1)
 	if err != nil {
 		log.Printf("Failed to track organization creation: %v", err)
 	} else {
-		fmt.Printf("✓ Tracked organization creation for user: %s\n", userData.Name)
+		fmt.Printf("✓ Tracked organization creation for user: %s\n", userData.Name.String)
 	}
 
 	// Example 3: Project creation
 	fmt.Println("\n=== Project Creation ===")
-	projectData := &analytics.ProjectData{
-		ID:        "project_abc123",
-		Name:      "My Awesome Project",
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+
+	// Create a sample UUID for the project
+	projectUUID := pgtype.UUID{}
+	projectUUID.Scan("11111111-2222-3333-4444-555555555555")
+
+	projectData := &shared.Projects{
+		ID:             projectUUID,
+		Name:           "My Awesome Project",
+		Slug:           "my-awesome-project",
+		OrganizationID: orgUUID,
+		CreatedAt:      pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt:      pgtype.Timestamptz{Time: time.Now(), Valid: true},
 	}
 
 	// Identify project for grouping
@@ -90,8 +109,8 @@ func main() {
 		fmt.Printf("✓ Identified project: %s\n", projectData.Name)
 	}
 
-	// Track project creation event
-	err = service.ProjectNew(ctx, userData.ID, orgData.ID, projectData)
+	// Track project creation event (convert UUIDs to strings)
+	err = service.ProjectNew(ctx, userData.ID.String(), orgData.ID.String(), projectData)
 	if err != nil {
 		log.Printf("Failed to track project creation: %v", err)
 	} else {
@@ -100,12 +119,23 @@ func main() {
 
 	// Example 4: Environment setup
 	fmt.Println("\n=== Environment Setup ===")
-	envData := &analytics.EnvironmentData{
-		ID:             "env_production",
+
+	// Create sample UUIDs for environment
+	envUUID := pgtype.UUID{}
+	envUUID.Scan("99999999-8888-7777-6666-555555555555")
+	memberUUID := pgtype.UUID{}
+	memberUUID.Scan("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
+
+	envData := &shared.RuntimeEnvironments{
+		ID:             envUUID,
 		Slug:           "production",
-		OrganizationID: orgData.ID,
-		CreatedAt:      time.Now(),
-		UpdatedAt:      time.Now(),
+		ApiKey:         "env_api_key_12345",
+		Type:           "PRODUCTION",
+		OrganizationID: orgUUID,
+		ProjectID:      projectUUID,
+		OrgMemberID:    memberUUID,
+		CreatedAt:      pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt:      pgtype.Timestamptz{Time: time.Now(), Valid: true},
 	}
 
 	// Identify environment for grouping
@@ -120,8 +150,11 @@ func main() {
 	fmt.Println("\n=== Custom Telemetry ===")
 
 	// Track a custom workflow event
+	orgIDStr := orgData.ID.String()
+	envIDStr := envData.ID.String()
+
 	workflowEvent := &analytics.TelemetryEvent{
-		UserID: userData.ID,
+		UserID: userData.ID.String(),
 		Event:  "workflow_executed",
 		Properties: map[string]interface{}{
 			"workflow_id":  "workflow_xyz789",
@@ -129,8 +162,8 @@ func main() {
 			"status":       "success",
 			"trigger_type": "manual",
 		},
-		OrganizationID: &orgData.ID,
-		EnvironmentID:  &envData.ID,
+		OrganizationID: &orgIDStr,
+		EnvironmentID:  &envIDStr,
 	}
 
 	err = service.Capture(ctx, workflowEvent)
@@ -142,14 +175,14 @@ func main() {
 
 	// Track a feature usage event
 	featureEvent := &analytics.TelemetryEvent{
-		UserID: userData.ID,
+		UserID: userData.ID.String(),
 		Event:  "feature_used",
 		Properties: map[string]interface{}{
 			"feature_name": "advanced_scheduling",
 			"usage_count":  5,
 			"plan_type":    "pro",
 		},
-		OrganizationID: &orgData.ID,
+		OrganizationID: &orgIDStr,
 	}
 
 	err = service.Capture(ctx, featureEvent)

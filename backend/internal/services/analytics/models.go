@@ -6,51 +6,21 @@
 // - User, organization, project, environment analytics
 // - Structured event capture and grouping
 // - Graceful degradation when PostHog is unavailable
+//
+// Following trigger.dev's architecture pattern: analytics directly uses shared data layer models
+// instead of creating intermediate data transfer objects, maintaining type safety and simplicity.
 package analytics
 
 import (
-	"time"
+	"kongflow/backend/internal/shared"
 )
 
-// UserData represents user information for analytics tracking.
-// Matches trigger.dev's User model properties used in analytics.
-type UserData struct {
-	ID                   string    `json:"id"`
-	Email                string    `json:"email"`
-	Name                 string    `json:"name"`
-	AuthenticationMethod string    `json:"authenticationMethod"`
-	Admin                bool      `json:"admin"`
-	CreatedAt            time.Time `json:"createdAt"`
-}
-
-// OrganizationData represents organization information for analytics tracking.
-// Matches trigger.dev's Organization model properties used in analytics.
-type OrganizationData struct {
-	ID        string    `json:"id"`
-	Title     string    `json:"title"`
-	Slug      string    `json:"slug"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-}
-
-// ProjectData represents project information for analytics tracking.
-// Matches trigger.dev's Project model properties used in analytics.
-type ProjectData struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-}
-
-// EnvironmentData represents runtime environment information for analytics tracking.
-// Matches trigger.dev's RuntimeEnvironment model properties used in analytics.
-type EnvironmentData struct {
-	ID             string    `json:"id"`
-	Slug           string    `json:"slug"`
-	OrganizationID string    `json:"organizationId"`
-	CreatedAt      time.Time `json:"createdAt"`
-	UpdatedAt      time.Time `json:"updatedAt"`
-}
+// Type aliases for shared data models - matches trigger.dev's approach
+// These directly expose the shared data layer types for analytics use
+type User = shared.Users
+type Organization = shared.Organizations
+type Project = shared.Projects
+type Environment = shared.RuntimeEnvironments
 
 // TelemetryEvent represents a generic event for analytics capture.
 // Matches trigger.dev's telemetry.capture method parameters.

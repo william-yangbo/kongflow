@@ -4,7 +4,82 @@ import (
 	"context"
 	"testing"
 	"time"
+
+	"kongflow/backend/internal/shared"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
+
+// Helper functions to create test data with proper pgtype conversions
+
+func newTestUser(id, email, name string, createdAt time.Time) *User {
+	userUUID := pgtype.UUID{}
+	userUUID.Scan(id) // In a real scenario, this would be a proper UUID
+
+	return &shared.Users{
+		ID:        userUUID,
+		Email:     email,
+		Name:      pgtype.Text{String: name, Valid: true},
+		CreatedAt: pgtype.Timestamptz{Time: createdAt, Valid: true},
+		UpdatedAt: pgtype.Timestamptz{Time: createdAt, Valid: true},
+	}
+}
+
+func newTestOrganization(id, title, slug string, createdAt, updatedAt time.Time) *Organization {
+	orgUUID := pgtype.UUID{}
+	orgUUID.Scan(id) // In a real scenario, this would be a proper UUID
+
+	return &shared.Organizations{
+		ID:        orgUUID,
+		Title:     title,
+		Slug:      slug,
+		CreatedAt: pgtype.Timestamptz{Time: createdAt, Valid: true},
+		UpdatedAt: pgtype.Timestamptz{Time: updatedAt, Valid: true},
+	}
+}
+
+func newTestProject(id, name, slug, orgID string, createdAt, updatedAt time.Time) *Project {
+	projectUUID := pgtype.UUID{}
+	projectUUID.Scan(id) // In a real scenario, this would be a proper UUID
+
+	orgUUID := pgtype.UUID{}
+	orgUUID.Scan(orgID)
+
+	return &shared.Projects{
+		ID:             projectUUID,
+		Name:           name,
+		Slug:           slug,
+		OrganizationID: orgUUID,
+		CreatedAt:      pgtype.Timestamptz{Time: createdAt, Valid: true},
+		UpdatedAt:      pgtype.Timestamptz{Time: updatedAt, Valid: true},
+	}
+}
+
+func newTestEnvironment(id, slug, orgID, projectID, memberID string, createdAt, updatedAt time.Time) *Environment {
+	envUUID := pgtype.UUID{}
+	envUUID.Scan(id) // In a real scenario, this would be a proper UUID
+
+	orgUUID := pgtype.UUID{}
+	orgUUID.Scan(orgID)
+
+	projUUID := pgtype.UUID{}
+	projUUID.Scan(projectID)
+
+	memberUUID := pgtype.UUID{}
+	memberUUID.Scan(memberID)
+
+	return &shared.RuntimeEnvironments{
+		ID:             envUUID,
+		Slug:           slug,
+		ApiKey:         "test-api-key",
+		Type:           "DEVELOPMENT",
+		OrganizationID: orgUUID,
+		ProjectID:      projUUID,
+		OrgMemberID:    memberUUID,
+		CreatedAt:      pgtype.Timestamptz{Time: createdAt, Valid: true},
+		UpdatedAt:      pgtype.Timestamptz{Time: updatedAt, Valid: true},
+	}
+}
 
 func TestNewBehaviouralAnalytics(t *testing.T) {
 	tests := []struct {
@@ -73,14 +148,7 @@ func TestBehaviouralAnalytics_UserIdentify(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	userData := &UserData{
-		ID:                   "user123",
-		Email:                "test@example.com",
-		Name:                 "Test User",
-		AuthenticationMethod: "email",
-		Admin:                false,
-		CreatedAt:            time.Now(),
-	}
+	userData := newTestUser("user123", "test@example.com", "Test User", time.Now())
 
 	// Should not error with nil client
 	err := service.UserIdentify(ctx, userData, true)
@@ -102,13 +170,7 @@ func TestBehaviouralAnalytics_OrganizationIdentify(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	orgData := &OrganizationData{
-		ID:        "org123",
-		Title:     "Test Organization",
-		Slug:      "test-org",
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	}
+	orgData := newTestOrganization("org123", "Test Organization", "test-org", time.Now(), time.Now())
 
 	err := service.OrganizationIdentify(ctx, orgData)
 	if err != nil {
@@ -123,12 +185,7 @@ func TestBehaviouralAnalytics_ProjectIdentify(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	projectData := &ProjectData{
-		ID:        "project123",
-		Name:      "Test Project",
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	}
+	projectData := newTestProject("project123", "Test Project", "test-project", "org123", time.Now(), time.Now())
 
 	err := service.ProjectIdentify(ctx, projectData)
 	if err != nil {
@@ -143,13 +200,7 @@ func TestBehaviouralAnalytics_EnvironmentIdentify(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	envData := &EnvironmentData{
-		ID:             "env123",
-		Slug:           "production",
-		OrganizationID: "org123",
-		CreatedAt:      time.Now(),
-		UpdatedAt:      time.Now(),
-	}
+	envData := newTestEnvironment("env123", "production", "org123", "project123", "member123", time.Now(), time.Now())
 
 	err := service.EnvironmentIdentify(ctx, envData)
 	if err != nil {

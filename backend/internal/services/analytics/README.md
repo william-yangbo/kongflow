@@ -18,9 +18,21 @@ This package implements the `analytics` service for the kongflow backend, provid
 ### Core Components
 
 1. **BehaviouralAnalytics**: Main service implementation
-2. **Data Models**: TypeScript-aligned data structures
-3. **Configuration**: Flexible configuration management
-4. **PostHog Integration**: Backend analytics provider
+2. **Shared Data Models**: Direct usage of SQLC-generated models from shared layer
+3. **Type Aliases**: Clean API using type aliases (User, Organization, Project, Environment)
+4. **Configuration**: Flexible configuration management
+5. **PostHog Integration**: Backend analytics provider
+
+### Shared Data Layer Integration
+
+Following trigger.dev's exact architecture pattern, this implementation:
+
+- **Uses shared data models directly**: No intermediate DTOs or adapters
+- **Type aliases for clean API**: `type User = shared.Users` etc.
+- **PostgreSQL type compatibility**: Handles pgtype fields (UUID, Text, Timestamptz)
+- **Zero conversion overhead**: Direct mapping from database to analytics
+
+This approach mirrors trigger.dev's `export type { User } from "@trigger.dev/database"` pattern.
 
 ### API Alignment
 
@@ -54,35 +66,43 @@ defer service.Close()
 ### User Tracking
 
 ```go
-userData := &analytics.UserData{
-    ID:                   "user_123",
-    Email:                "user@example.com",
-    Name:                 "John Doe",
-    AuthenticationMethod: "email",
-    Admin:                false,
-    CreatedAt:            time.Now(),
+import (
+    "github.com/jackc/pgx/v5/pgtype"
+    "kongflow/backend/internal/shared"
+)
+
+// Create user data using shared model with proper pgtype fields
+userData := &shared.Users{
+    ID:        userUUID, // pgtype.UUID
+    Email:     "user@example.com", // string
+    Name:      pgtype.Text{String: "John Doe", Valid: true}, // pgtype.Text
+    CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+    UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 }
 
-// Track new user registration
-err := service.UserIdentify(ctx, userData, true)
+// Track new user registration (using type alias)
+var user analytics.User = userData
+err := service.UserIdentify(ctx, user, true)
 ```
 
 ### Organization Analytics
 
 ```go
-orgData := &analytics.OrganizationData{
-    ID:        "org_456",
-    Title:     "My Company",
-    Slug:      "my-company",
-    CreatedAt: time.Now(),
-    UpdatedAt: time.Now(),
+// Create organization data using shared model
+orgData := &shared.Organizations{
+    ID:        orgUUID, // pgtype.UUID
+    Title:     "My Company", // string
+    Slug:      "my-company", // string
+    CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+    UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 }
 
-// Identify organization for grouping
-err := service.OrganizationIdentify(ctx, orgData)
+// Identify organization for grouping (using type alias)
+var organization analytics.Organization = orgData
+err := service.OrganizationIdentify(ctx, organization)
 
 // Track organization creation event
-err = service.OrganizationNew(ctx, userID, orgData, organizationCount)
+err = service.OrganizationNew(ctx, userID, organization, organizationCount)
 ```
 
 ### Custom Events
@@ -186,12 +206,63 @@ Events follow PostHog's standard format:
 
 ### Property Alignment
 
-All data structures match trigger.dev's TypeScript interfaces:
+All data structures use shared data layer models with type aliases for trigger.dev compatibility:
 
-- `UserData` ↔ trigger.dev's user interface
-- `OrganizationData` ↔ trigger.dev's organization interface
-- `ProjectData` ↔ trigger.dev's project interface
-- `EnvironmentData` ↔ trigger.dev's environment interface
+- `User` (alias for `shared.Users`) ↔ trigger.dev's user interface
+- `Organization` (alias for `shared.Organizations`) ↔ trigger.dev's organization interface
+- `Project` (alias for `shared.Projects`) ↔ trigger.dev's project interface
+- `Environment` (alias for `shared.RuntimeEnvironments`) ↔ trigger.dev's environment interface
+
+### Shared Data Model Fields
+
+**User Model (`shared.Users`)**:
+
+- `ID`: pgtype.UUID
+- `Email`: string
+- `Name`: pgtype.Text (nullable)
+- `AvatarUrl`: pgtype.Text (nullable)
+- `CreatedAt`, `UpdatedAt`: pgtype.Timestamptz
+
+**Organization Model (`shared.Organizations`)**:
+
+- `ID`: pgtype.UUID
+- `Title`, `Slug`: string
+- `CreatedAt`, `UpdatedAt`: pgtype.Timestamptz
+
+**Project Model (`shared.Projects`)**:
+
+- `ID`, `OrganizationID`: pgtype.UUID
+- `Name`, `Slug`: string
+- `CreatedAt`, `UpdatedAt`: pgtype.Timestamptz
+
+**Environment Model (`shared.RuntimeEnvironments`)**:
+
+- `ID`, `OrganizationID`, `ProjectID`, `OrgMemberID`: pgtype.UUID
+- `Slug`, `ApiKey`, `Type`: string
+- `CreatedAt`, `UpdatedAt`: pgtype.Timestamptz
+
+### PostgreSQL Type Handling
+
+The analytics service seamlessly handles PostgreSQL-specific types:
+
+```go
+// UUID handling
+userUUID := pgtype.UUID{}
+userUUID.Scan("123e4567-e89b-12d3-a456-426614174000")
+
+// Nullable text fields
+name := pgtype.Text{String: "John Doe", Valid: true}
+emptyName := pgtype.Text{Valid: false} // NULL value
+
+// Timestamp handling
+createdAt := pgtype.Timestamptz{Time: time.Now(), Valid: true}
+```
+
+The service automatically extracts values for PostHog integration:
+
+- `pgtype.UUID` → `String()` method
+- `pgtype.Text` → `.String` field (if `.Valid`)
+- `pgtype.Timestamptz` → `.Time` field
 
 ## Performance
 
@@ -210,11 +281,39 @@ All data structures match trigger.dev's TypeScript interfaces:
 
 ## Migration from trigger.dev
 
-This service is designed as a drop-in replacement for trigger.dev's analytics:
+This service perfectly replicates trigger.dev's architecture pattern:
+
+### Direct Database Model Usage
+
+Like trigger.dev's approach:
+
+```typescript
+// trigger.dev exports database types directly
+export type { User, Organization } from '@trigger.dev/database';
+```
+
+Our Go implementation follows the same pattern:
+
+```go
+// Direct usage of shared data layer with type aliases
+type User = shared.Users
+type Organization = shared.Organizations
+```
+
+### Key Benefits
+
+1. **Zero Abstraction Layer**: No DTOs or adapters between database and analytics
+2. **Type Safety**: Direct PostgreSQL type compatibility with compile-time checking
+3. **Performance**: No conversion overhead
+4. **Maintainability**: Single source of truth for data structures
+5. **trigger.dev Alignment**: Identical architectural philosophy
+
+### Compatibility
+
+This service maintains 100% behavioral compatibility with trigger.dev while leveraging:
 
 1. Same method signatures and behaviors
 2. Identical event properties and structure
 3. Compatible grouping and identification
 4. Matching error handling patterns
-
-The migration maintains full behavioral compatibility while leveraging Go's performance and type safety benefits.
+5. **Direct shared data layer usage** (just like trigger.dev)

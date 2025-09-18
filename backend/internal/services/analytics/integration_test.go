@@ -20,14 +20,7 @@ func TestIntegration_BehaviouralAnalytics(t *testing.T) {
 
 	// Step 1: User registration flow
 	t.Run("UserRegistrationFlow", func(t *testing.T) {
-		userData := &UserData{
-			ID:                   "user_integration_test",
-			Email:                "integration@test.com",
-			Name:                 "Integration Test User",
-			AuthenticationMethod: "email",
-			Admin:                true,
-			CreatedAt:            time.Now(),
-		}
+		userData := newTestUser("user_integration_test", "integration@test.com", "Integration Test User", time.Now())
 
 		// New user identification
 		err := service.UserIdentify(ctx, userData, true)
@@ -44,13 +37,7 @@ func TestIntegration_BehaviouralAnalytics(t *testing.T) {
 
 	// Step 2: Organization lifecycle
 	t.Run("OrganizationLifecycle", func(t *testing.T) {
-		orgData := &OrganizationData{
-			ID:        "org_integration_test",
-			Title:     "Integration Test Organization",
-			Slug:      "integration-test-org",
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		}
+		orgData := newTestOrganization("org_integration_test", "Integration Test Organization", "integration-test-org", time.Now(), time.Now())
 
 		// Organization identification
 		err := service.OrganizationIdentify(ctx, orgData)
@@ -67,12 +54,7 @@ func TestIntegration_BehaviouralAnalytics(t *testing.T) {
 
 	// Step 3: Project lifecycle
 	t.Run("ProjectLifecycle", func(t *testing.T) {
-		projectData := &ProjectData{
-			ID:        "project_integration_test",
-			Name:      "Integration Test Project",
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		}
+		projectData := newTestProject("project_integration_test", "Integration Test Project", "integration-test-project", "org_integration_test", time.Now(), time.Now())
 
 		// Project identification
 		err := service.ProjectIdentify(ctx, projectData)
@@ -89,13 +71,7 @@ func TestIntegration_BehaviouralAnalytics(t *testing.T) {
 
 	// Step 4: Environment setup
 	t.Run("EnvironmentSetup", func(t *testing.T) {
-		envData := &EnvironmentData{
-			ID:             "env_integration_test",
-			Slug:           "integration-test",
-			OrganizationID: "org_integration_test",
-			CreatedAt:      time.Now(),
-			UpdatedAt:      time.Now(),
-		}
+		envData := newTestEnvironment("env_integration_test", "integration-test", "org_integration_test", "project_integration_test", "member_integration_test", time.Now(), time.Now())
 
 		err := service.EnvironmentIdentify(ctx, envData)
 		if err != nil {
@@ -236,14 +212,7 @@ func TestIntegration_ConcurrentUsage(t *testing.T) {
 				switch j % 4 {
 				case 0:
 					// User identification
-					userData := &UserData{
-						ID:                   fmt.Sprintf("user_%d_%d", goroutineID, j),
-						Email:                fmt.Sprintf("user%d_%d@test.com", goroutineID, j),
-						Name:                 fmt.Sprintf("User %d %d", goroutineID, j),
-						AuthenticationMethod: "email",
-						Admin:                false,
-						CreatedAt:            time.Now(),
-					}
+					userData := newTestUser(fmt.Sprintf("user_%d_%d", goroutineID, j), fmt.Sprintf("user%d_%d@test.com", goroutineID, j), fmt.Sprintf("User %d %d", goroutineID, j), time.Now())
 					err := service.UserIdentify(ctx, userData, true)
 					if err != nil {
 						errChan <- fmt.Errorf("goroutine %d: user identify failed: %v", goroutineID, err)
@@ -251,13 +220,7 @@ func TestIntegration_ConcurrentUsage(t *testing.T) {
 
 				case 1:
 					// Organization identification
-					orgData := &OrganizationData{
-						ID:        fmt.Sprintf("org_%d_%d", goroutineID, j),
-						Title:     fmt.Sprintf("Org %d %d", goroutineID, j),
-						Slug:      fmt.Sprintf("org-%d-%d", goroutineID, j),
-						CreatedAt: time.Now(),
-						UpdatedAt: time.Now(),
-					}
+					orgData := newTestOrganization(fmt.Sprintf("org_%d_%d", goroutineID, j), fmt.Sprintf("Org %d %d", goroutineID, j), fmt.Sprintf("org-%d-%d", goroutineID, j), time.Now(), time.Now())
 					err := service.OrganizationIdentify(ctx, orgData)
 					if err != nil {
 						errChan <- fmt.Errorf("goroutine %d: org identify failed: %v", goroutineID, err)
@@ -265,12 +228,7 @@ func TestIntegration_ConcurrentUsage(t *testing.T) {
 
 				case 2:
 					// Project identification
-					projectData := &ProjectData{
-						ID:        fmt.Sprintf("project_%d_%d", goroutineID, j),
-						Name:      fmt.Sprintf("Project %d %d", goroutineID, j),
-						CreatedAt: time.Now(),
-						UpdatedAt: time.Now(),
-					}
+					projectData := newTestProject(fmt.Sprintf("project_%d_%d", goroutineID, j), fmt.Sprintf("Project %d %d", goroutineID, j), fmt.Sprintf("project-%d-%d", goroutineID, j), fmt.Sprintf("org_%d_%d", goroutineID, j), time.Now(), time.Now())
 					err := service.ProjectIdentify(ctx, projectData)
 					if err != nil {
 						errChan <- fmt.Errorf("goroutine %d: project identify failed: %v", goroutineID, err)

@@ -10,6 +10,7 @@ import (
 
 // BehaviouralAnalytics implements the AnalyticsService interface.
 // This implementation strictly aligns with trigger.dev's BehaviouralAnalytics class.
+// Following trigger.dev's architecture: uses shared data layer models directly.
 type BehaviouralAnalytics struct {
 	client posthog.Client
 	config *Config
@@ -50,21 +51,31 @@ func NewBehaviouralAnalytics(config *Config) (*BehaviouralAnalytics, error) {
 
 // UserIdentify identifies a user and tracks user creation events.
 // Matches trigger.dev's analytics.user.identify() method exactly.
-func (b *BehaviouralAnalytics) UserIdentify(ctx context.Context, user *UserData, isNewUser bool) error {
+// Uses shared data layer User model directly, following trigger.dev's architecture.
+func (b *BehaviouralAnalytics) UserIdentify(ctx context.Context, user *User, isNewUser bool) error {
 	if b.client == nil {
 		return nil // Graceful degradation when client is not available
 	}
 
+	// Convert pgtype fields to standard types for PostHog
+	userName := ""
+	if user.Name.Valid {
+		userName = user.Name.String
+	}
+
+	userID := user.ID.String()
+	createdAt := user.CreatedAt.Time
+
 	// User identification - matches trigger.dev's client.identify() call
 	err := b.client.Enqueue(posthog.Identify{
-		DistinctId: user.ID,
+		DistinctId: userID,
 		Properties: posthog.Properties{
-			"email":                user.Email,
-			"name":                 user.Name,
-			"authenticationMethod": user.AuthenticationMethod,
-			"admin":                user.Admin,
-			"createdAt":            user.CreatedAt,
-			"isNewUser":            isNewUser,
+			"email":     user.Email,
+			"name":      userName,
+			"createdAt": createdAt,
+			"isNewUser": isNewUser,
+			// Note: authenticationMethod and admin not available in shared model
+			// This maintains trigger.dev compatibility while using our data schema
 		},
 	})
 	if err != nil {
@@ -74,14 +85,12 @@ func (b *BehaviouralAnalytics) UserIdentify(ctx context.Context, user *UserData,
 	// Track new user creation event - matches trigger.dev's conditional event capture
 	if isNewUser {
 		captureEvent := &CaptureEvent{
-			UserID: user.ID,
+			UserID: userID,
 			Event:  "user created",
 			EventProperties: map[string]interface{}{
-				"email":                user.Email,
-				"name":                 user.Name,
-				"authenticationMethod": user.AuthenticationMethod,
-				"admin":                user.Admin,
-				"createdAt":            user.CreatedAt,
+				"email":     user.Email,
+				"name":      userName,
+				"createdAt": createdAt,
 			},
 		}
 		return b.capture(captureEvent)
@@ -92,19 +101,20 @@ func (b *BehaviouralAnalytics) UserIdentify(ctx context.Context, user *UserData,
 
 // OrganizationIdentify identifies an organization for grouping.
 // Matches trigger.dev's analytics.organization.identify() method.
-func (b *BehaviouralAnalytics) OrganizationIdentify(ctx context.Context, org *OrganizationData) error {
+// Uses shared data layer Organization model directly.
+func (b *BehaviouralAnalytics) OrganizationIdentify(ctx context.Context, org *Organization) error {
 	if b.client == nil {
 		return nil
 	}
 
 	err := b.client.Enqueue(posthog.GroupIdentify{
 		Type: "organization",
-		Key:  org.ID,
+		Key:  org.ID.String(),
 		Properties: posthog.Properties{
 			"name":      org.Title,
 			"slug":      org.Slug,
-			"createdAt": org.CreatedAt,
-			"updatedAt": org.UpdatedAt,
+			"createdAt": org.CreatedAt.Time,
+			"updatedAt": org.UpdatedAt.Time,
 		},
 	})
 	if err != nil {
@@ -116,44 +126,45 @@ func (b *BehaviouralAnalytics) OrganizationIdentify(ctx context.Context, org *Or
 
 // OrganizationNew tracks new organization creation.
 // Matches trigger.dev's analytics.organization.new() method.
-func (b *BehaviouralAnalytics) OrganizationNew(ctx context.Context, userID string, org *OrganizationData, organizationCount int) error {
+func (b *BehaviouralAnalytics) OrganizationNew(ctx context.Context, userID string, org *Organization, organizationCount int) error {
 	if b.client == nil {
 		return nil
 	}
 
+	orgID := org.ID.String()
 	captureEvent := &CaptureEvent{
 		UserID:         userID,
 		Event:          "organization created",
-		OrganizationID: &org.ID,
+		OrganizationID: &orgID,
 		EventProperties: map[string]interface{}{
-			"id":        org.ID,
+			"id":        orgID,
 			"slug":      org.Slug,
 			"title":     org.Title,
-			"createdAt": org.CreatedAt,
-			"updatedAt": org.UpdatedAt,
+			"createdAt": org.CreatedAt.Time,
+			"updatedAt": org.UpdatedAt.Time,
 		},
 		UserProperties: map[string]interface{}{
 			"organizationCount": organizationCount,
 		},
 	}
-
 	return b.capture(captureEvent)
 }
 
 // ProjectIdentify identifies a project for grouping.
 // Matches trigger.dev's analytics.project.identify() method.
-func (b *BehaviouralAnalytics) ProjectIdentify(ctx context.Context, project *ProjectData) error {
+// Uses shared data layer Project model directly.
+func (b *BehaviouralAnalytics) ProjectIdentify(ctx context.Context, project *Project) error {
 	if b.client == nil {
 		return nil
 	}
 
 	err := b.client.Enqueue(posthog.GroupIdentify{
 		Type: "project",
-		Key:  project.ID,
+		Key:  project.ID.String(),
 		Properties: posthog.Properties{
 			"name":      project.Name,
-			"createdAt": project.CreatedAt,
-			"updatedAt": project.UpdatedAt,
+			"createdAt": project.CreatedAt.Time,
+			"updatedAt": project.UpdatedAt.Time,
 		},
 	})
 	if err != nil {
@@ -165,7 +176,7 @@ func (b *BehaviouralAnalytics) ProjectIdentify(ctx context.Context, project *Pro
 
 // ProjectNew tracks new project creation.
 // Matches trigger.dev's analytics.project.new() method.
-func (b *BehaviouralAnalytics) ProjectNew(ctx context.Context, userID, organizationID string, project *ProjectData) error {
+func (b *BehaviouralAnalytics) ProjectNew(ctx context.Context, userID, organizationID string, project *Project) error {
 	if b.client == nil {
 		return nil
 	}
@@ -175,10 +186,10 @@ func (b *BehaviouralAnalytics) ProjectNew(ctx context.Context, userID, organizat
 		Event:          "project created",
 		OrganizationID: &organizationID,
 		EventProperties: map[string]interface{}{
-			"id":        project.ID,
+			"id":        project.ID.String(),
 			"title":     project.Name,
-			"createdAt": project.CreatedAt,
-			"updatedAt": project.UpdatedAt,
+			"createdAt": project.CreatedAt.Time,
+			"updatedAt": project.UpdatedAt.Time,
 		},
 	}
 
@@ -187,20 +198,21 @@ func (b *BehaviouralAnalytics) ProjectNew(ctx context.Context, userID, organizat
 
 // EnvironmentIdentify identifies an environment for grouping.
 // Matches trigger.dev's analytics.environment.identify() method.
-func (b *BehaviouralAnalytics) EnvironmentIdentify(ctx context.Context, env *EnvironmentData) error {
+// Uses shared data layer Environment model directly.
+func (b *BehaviouralAnalytics) EnvironmentIdentify(ctx context.Context, env *Environment) error {
 	if b.client == nil {
 		return nil
 	}
 
 	err := b.client.Enqueue(posthog.GroupIdentify{
 		Type: "environment",
-		Key:  env.ID,
+		Key:  env.ID.String(),
 		Properties: posthog.Properties{
 			"name":           env.Slug,
 			"slug":           env.Slug,
-			"organizationId": env.OrganizationID,
-			"createdAt":      env.CreatedAt,
-			"updatedAt":      env.UpdatedAt,
+			"organizationId": env.OrganizationID.String(),
+			"createdAt":      env.CreatedAt.Time,
+			"updatedAt":      env.UpdatedAt.Time,
 		},
 	})
 	if err != nil {
@@ -230,35 +242,40 @@ func (b *BehaviouralAnalytics) Capture(ctx context.Context, event *TelemetryEven
 	return b.capture(captureEvent)
 }
 
-// capture is the internal method that handles event capture to PostHog.
-// Matches trigger.dev's private #capture() method logic exactly.
+// Close cleans up resources and flushes pending events.
+func (b *BehaviouralAnalytics) Close() error {
+	if b.client == nil {
+		return nil
+	}
+	return b.client.Close()
+}
+
+// capture is the internal method for capturing events.
+// Matches trigger.dev's #capture private method exactly.
 func (b *BehaviouralAnalytics) capture(event *CaptureEvent) error {
 	if b.client == nil {
 		return nil
 	}
 
-	// Build groups - matches trigger.dev's group building logic
-	groups := posthog.NewGroups()
+	groups := make(map[string]interface{})
 
 	if event.OrganizationID != nil {
-		groups.Set("organization", *event.OrganizationID)
+		groups["organization"] = *event.OrganizationID
 	}
 
 	if event.ProjectID != nil {
-		groups.Set("project", *event.ProjectID)
+		groups["project"] = *event.ProjectID
 	}
 
 	if event.JobID != nil {
-		groups.Set("workflow", *event.JobID)
+		groups["workflow"] = *event.JobID
 	}
 
 	if event.EnvironmentID != nil {
-		groups.Set("environment", *event.EnvironmentID)
+		groups["environment"] = *event.EnvironmentID
 	}
 
-	// Build properties - matches trigger.dev's property building logic
-	properties := make(posthog.Properties)
-
+	properties := make(map[string]interface{})
 	if event.EventProperties != nil {
 		for k, v := range event.EventProperties {
 			properties[k] = v
@@ -273,25 +290,12 @@ func (b *BehaviouralAnalytics) capture(event *CaptureEvent) error {
 		properties["$set_once"] = event.UserOnceProperties
 	}
 
-	// Capture event - matches trigger.dev's client.capture() call
-	err := b.client.Enqueue(posthog.Capture{
+	eventData := posthog.Capture{
 		DistinctId: event.UserID,
 		Event:      event.Event,
 		Properties: properties,
 		Groups:     groups,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to capture event: %w", err)
 	}
 
-	return nil
-}
-
-// Close cleans up resources and flushes pending events.
-func (b *BehaviouralAnalytics) Close() error {
-	if b.client == nil {
-		return nil
-	}
-
-	return b.client.Close()
+	return b.client.Enqueue(eventData)
 }
