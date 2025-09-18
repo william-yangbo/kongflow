@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Power up your workflows with KongFlow" />
+    <title>Welcome to KongFlow</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+          'Helvetica Neue', Ubuntu, sans-serif;
+        line-height: 24px;
+        color: #333;
+        margin: 0;
+        padding: 0;
+        background-color: #ffffff;
+      }
+      .container {
+        background-color: #ffffff;
+        margin: 0 auto;
+        padding: 20px 0 48px;
+        margin-bottom: 64px;
+      }
+      .content {
+        padding: 0 48px;
+      }
+      .paragraph {
+        color: #333;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+          'Helvetica Neue', Ubuntu, sans-serif;
+        font-size: 16px;
+        line-height: 24px;
+        text-align: left;
+        margin: 0 0 20px 0;
+      }
+      .button {
+        background-color: #656ee8;
+        border-radius: 5px;
+        color: #fff;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+          'Helvetica Neue', Ubuntu, sans-serif;
+        font-size: 16px;
+        font-weight: bold;
+        text-decoration: none;
+        text-align: center;
+        display: inline-block;
+        padding: 12px 20px;
+        margin: 20px 0;
+      }
+      .footer {
+        color: #8898aa;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+          'Helvetica Neue', Ubuntu, sans-serif;
+        font-size: 12px;
+        line-height: 16px;
+        margin-top: 40px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="content">
+        {{if .Name}}
+        <p class="paragraph">Hi {{.Name}},</p>
+        {{else}}
+        <p class="paragraph">Hi there,</p>
+        {{end}}
+
+        <p class="paragraph">I'm William from the KongFlow team.</p>
+
+        <p
+          class="paragraph"
+          style="font-size: 24px; font-weight: bold; color: #656ee8"
+        >
+          ✨ Welcome to KongFlow!
+        </p>
+
+        <p class="paragraph">
+          Our goal is to give developers like you the ability to effortlessly
+          create powerful workflow automations in code.
+        </p>
+
+        <p class="paragraph">
+          We recommend starting with one of these first steps:
+        </p>
+
+        <a href="#" class="button"> Create Your First Workflow </a>
+
+        <p class="paragraph">
+          Or
+          <a href="#" style="color: #2754c5; text-decoration: underline"
+            >Browse Templates</a
+          >
+          to get started with pre-built workflows.
+        </p>
+
+        <p class="paragraph">
+          If you have any questions, just reply to this email. I read every
+          single one.
+        </p>
+
+        <p class="paragraph">— The KongFlow team</p>
+
+        <div class="footer">
+          <p>
+            This email was sent by KongFlow. If you have any questions, please
+            contact our support team.
+          </p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

@@ -54,7 +54,7 @@ func NewClient(opts ClientOptions) (*Client, error) {
 	config.MaxWorkers = opts.RunnerOptions.Concurrency
 
 	// Create manager
-	manager, err := NewManager(config, opts.DatabasePool, opts.Logger)
+	manager, err := NewManager(config, opts.DatabasePool, opts.Logger, nil) // EmailSender will be set later if needed
 	if err != nil {
 		return nil, fmt.Errorf("failed to create manager: %w", err)
 	}

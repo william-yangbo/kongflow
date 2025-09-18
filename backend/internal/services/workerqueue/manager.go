@@ -63,15 +63,59 @@ func (w *InvokeDispatcherWorker) Work(ctx context.Context, job *river.Job[Invoke
 	return nil
 }
 
+// EmailSender defines the interface for sending emails
+// This avoids circular dependencies with the email package
+type EmailSender interface {
+	SendEmail(ctx context.Context, email EmailData) error
+}
+
+// EmailData represents the email data needed to send an email
+type EmailData struct {
+	To      string
+	Subject string
+	Body    string
+	From    string
+}
+
 // ScheduleEmailWorker handles email scheduling jobs
 type ScheduleEmailWorker struct {
 	river.WorkerDefaults[ScheduleEmailArgs]
-	logger *slog.Logger
+	logger      *slog.Logger
+	emailSender EmailSender
 }
 
 // Work processes email scheduling jobs
 func (w *ScheduleEmailWorker) Work(ctx context.Context, job *river.Job[ScheduleEmailArgs]) error {
 	w.logger.Info("Processing schedule email job", "job_id", job.ID, "args", job.Args)
+
+	if w.emailSender == nil {
+		w.logger.Error("EmailSender not configured for ScheduleEmailWorker")
+		return fmt.Errorf("email sender not configured")
+	}
+
+	// Convert ScheduleEmailArgs to EmailData
+	emailData := EmailData{
+		To:      job.Args.To,
+		Subject: job.Args.Subject,
+		Body:    job.Args.Body,
+		From:    job.Args.From,
+	}
+
+	// Send the email using the configured email sender
+	if err := w.emailSender.SendEmail(ctx, emailData); err != nil {
+		w.logger.Error("Failed to send email",
+			"job_id", job.ID,
+			"to", job.Args.To,
+			"subject", job.Args.Subject,
+			"error", err)
+		return fmt.Errorf("failed to send email: %w", err)
+	}
+
+	w.logger.Info("Successfully sent email",
+		"job_id", job.ID,
+		"to", job.Args.To,
+		"subject", job.Args.Subject)
+
 	return nil
 }
 
@@ -82,14 +126,15 @@ type Manager struct {
 	workers     *river.Workers
 	config      Config
 	logger      *slog.Logger
+	emailSender EmailSender
 
 	// Future: can add SQLC support when needed
 	// sqlcQueries *database.Queries
 }
 
 // NewManager creates a new worker manager with the given configuration
-// Simplified version without EndpointIndexer dependency for now
-func NewManager(config Config, dbPool *pgxpool.Pool, logger *slog.Logger) (*Manager, error) {
+// EmailSender can be nil for testing or when email functionality is not needed
+func NewManager(config Config, dbPool *pgxpool.Pool, logger *slog.Logger, emailSender EmailSender) (*Manager, error) {
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -101,7 +146,7 @@ func NewManager(config Config, dbPool *pgxpool.Pool, logger *slog.Logger) (*Mana
 	river.AddWorker(workers, &StartRunWorker{logger: logger})
 	river.AddWorker(workers, &DeliverEventWorker{logger: logger})
 	river.AddWorker(workers, &InvokeDispatcherWorker{logger: logger})
-	river.AddWorker(workers, &ScheduleEmailWorker{logger: logger})
+	river.AddWorker(workers, &ScheduleEmailWorker{logger: logger, emailSender: emailSender})
 
 	riverConfig := &river.Config{
 		Logger: logger,
@@ -138,7 +183,16 @@ func NewManager(config Config, dbPool *pgxpool.Pool, logger *slog.Logger) (*Mana
 		workers:     workers,
 		config:      config,
 		logger:      logger,
+		emailSender: emailSender,
 	}, nil
+}
+
+// SetEmailSender sets the email sender for the manager after creation
+// This allows for dependency injection without circular dependencies
+func (m *Manager) SetEmailSender(emailSender EmailSender) {
+	m.emailSender = emailSender
+	// TODO: Update already registered workers if needed
+	// For now, workers are registered at creation time with the email sender
 }
 
 // Start starts the worker manager and begins processing jobs
