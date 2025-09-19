@@ -6,12 +6,16 @@ toolchain go1.24.7
 
 require (
 	github.com/alecthomas/chroma/v2 v2.2.0
+	github.com/go-playground/validator/v10 v10.27.0
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/sessions v1.4.0
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/oklog/ulid/v2 v2.1.1
 	github.com/posthog/posthog-go v1.6.8
+	github.com/riverqueue/river v0.25.0
+	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.25.0
+	github.com/riverqueue/river/rivertype v0.25.0
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.38.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.38.0
@@ -43,7 +47,6 @@ require (
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
-	github.com/go-playground/validator/v10 v10.27.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/gorilla/securecookie v1.1.2 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.2 // indirect
@@ -68,11 +71,8 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
-	github.com/riverqueue/river v0.25.0 // indirect
 	github.com/riverqueue/river/riverdriver v0.25.0 // indirect
-	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.25.0 // indirect
 	github.com/riverqueue/river/rivershared v0.25.0 // indirect
-	github.com/riverqueue/river/rivertype v0.25.0 // indirect
 	github.com/shirou/gopsutil/v4 v4.25.5 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
