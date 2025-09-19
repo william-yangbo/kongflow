@@ -84,6 +84,22 @@ sql:
         emit_exact_table_names: true
         omit_unused_structs: true
 
+  # Jobs Service - trigger.dev jobs service migration
+  - name: jobs
+    engine: 'postgresql'
+    queries: './internal/services/jobs/queries'
+    schema: './db/migrations'
+    gen:
+      go:
+        out: './internal/services/jobs'
+        package: 'jobs'
+        sql_package: 'pgx/v5'
+        emit_json_tags: true
+        emit_interface: true
+        emit_prepared_queries: false
+        emit_exact_table_names: true
+        omit_unused_structs: true
+
   # JobQueue Service - future trigger.dev job system
   # - name: jobqueue
   #   engine: 'postgresql'

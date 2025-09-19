@@ -25,6 +25,20 @@ test-integration:
 	@echo "运行集成测试..."
 	go test ./internal/secretstore -run "TestRepositoryTestSuite" -v
 
+# Jobs 服务集成测试
+test-integration-jobs:
+	@echo "运行 Jobs Repository 集成测试..."
+	go test ./internal/services/jobs -tags=integration -v -timeout=5m
+
+# Endpoints 服务集成测试
+test-integration-endpoints:
+	@echo "运行 Endpoints Repository 集成测试..."
+	go test ./internal/services/endpoints -tags=integration -v -timeout=5m
+
+# 所有服务集成测试
+test-integration-all: test-integration test-integration-jobs test-integration-endpoints
+	@echo "所有集成测试完成"
+
 # 端到端测试
 test-e2e:
 	@echo "运行端到端测试..."
@@ -41,6 +55,13 @@ test-coverage:
 	go test ./internal/secretstore -cover -coverprofile=coverage.out
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "覆盖率报告已生成: coverage.html"
+
+# Jobs 服务集成测试覆盖率
+test-integration-coverage-jobs:
+	@echo "生成 Jobs 服务集成测试覆盖率报告..."
+	go test ./internal/services/jobs -tags=integration -coverprofile=jobs-coverage.out -covermode=atomic -timeout=5m
+	go tool cover -html=jobs-coverage.out -o jobs-coverage.html
+	@echo "Jobs 服务覆盖率报告已生成: jobs-coverage.html"
 
 # 基准测试
 test-bench:
