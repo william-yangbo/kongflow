@@ -287,3 +287,127 @@ func (UserTaskArgs) InsertOpts() river.InsertOpts {
 		},
 	}
 }
+
+// RegisterJobArgs represents arguments for job registration
+// This corresponds to endpoint job registration tasks
+type RegisterJobArgs struct {
+	// EndpointID is the endpoint ID that owns this job
+	EndpointID string `json:"endpoint_id"`
+
+	// JobID is the unique identifier of the job to register
+	JobID string `json:"job_id"`
+
+	// JobMetadata contains the job definition and configuration
+	JobMetadata map[string]interface{} `json:"job_metadata"`
+}
+
+// Kind returns the unique identifier for this job type
+func (RegisterJobArgs) Kind() string {
+	return "register_job"
+}
+
+// InsertOpts provides default insertion options for job registration
+func (RegisterJobArgs) InsertOpts() river.InsertOpts {
+	return river.InsertOpts{
+		Queue:       string(QueueDefault),
+		Priority:    int(PriorityNormal),
+		MaxAttempts: 3,
+		UniqueOpts: river.UniqueOpts{
+			ByArgs:   true,            // 防止相同作业重复注册
+			ByPeriod: 5 * time.Minute, // 5分钟内相同作业不重复注册
+		},
+	}
+}
+
+// RegisterSourceArgs represents arguments for source registration
+// This corresponds to endpoint source registration tasks
+type RegisterSourceArgs struct {
+	// EndpointID is the endpoint ID that owns this source
+	EndpointID string `json:"endpoint_id"`
+
+	// SourceID is the unique identifier of the source to register
+	SourceID string `json:"source_id"`
+
+	// SourceMetadata contains the source definition and configuration
+	SourceMetadata map[string]interface{} `json:"source_metadata"`
+}
+
+// Kind returns the unique identifier for this job type
+func (RegisterSourceArgs) Kind() string {
+	return "register_source"
+}
+
+// InsertOpts provides default insertion options for source registration
+func (RegisterSourceArgs) InsertOpts() river.InsertOpts {
+	return river.InsertOpts{
+		Queue:       string(QueueDefault),
+		Priority:    int(PriorityNormal),
+		MaxAttempts: 3,
+		UniqueOpts: river.UniqueOpts{
+			ByArgs:   true,            // 防止相同源重复注册
+			ByPeriod: 5 * time.Minute, // 5分钟内相同源不重复注册
+		},
+	}
+}
+
+// RegisterDynamicTriggerArgs represents arguments for dynamic trigger registration
+// This corresponds to endpoint dynamic trigger registration tasks
+type RegisterDynamicTriggerArgs struct {
+	// EndpointID is the endpoint ID that owns this trigger
+	EndpointID string `json:"endpoint_id"`
+
+	// TriggerID is the unique identifier of the trigger to register
+	TriggerID string `json:"trigger_id"`
+
+	// TriggerMetadata contains the trigger definition and configuration
+	TriggerMetadata map[string]interface{} `json:"trigger_metadata"`
+}
+
+// Kind returns the unique identifier for this job type
+func (RegisterDynamicTriggerArgs) Kind() string {
+	return "register_dynamic_trigger"
+}
+
+// InsertOpts provides default insertion options for dynamic trigger registration
+func (RegisterDynamicTriggerArgs) InsertOpts() river.InsertOpts {
+	return river.InsertOpts{
+		Queue:       string(QueueDefault),
+		Priority:    int(PriorityNormal),
+		MaxAttempts: 3,
+		UniqueOpts: river.UniqueOpts{
+			ByArgs:   true,            // 防止相同触发器重复注册
+			ByPeriod: 5 * time.Minute, // 5分钟内相同触发器不重复注册
+		},
+	}
+}
+
+// RegisterDynamicScheduleArgs represents arguments for dynamic schedule registration
+// This corresponds to endpoint dynamic schedule registration tasks
+type RegisterDynamicScheduleArgs struct {
+	// EndpointID is the endpoint ID that owns this schedule
+	EndpointID string `json:"endpoint_id"`
+
+	// ScheduleID is the unique identifier of the schedule to register
+	ScheduleID string `json:"schedule_id"`
+
+	// ScheduleMetadata contains the schedule definition and configuration
+	ScheduleMetadata map[string]interface{} `json:"schedule_metadata"`
+}
+
+// Kind returns the unique identifier for this job type
+func (RegisterDynamicScheduleArgs) Kind() string {
+	return "register_dynamic_schedule"
+}
+
+// InsertOpts provides default insertion options for dynamic schedule registration
+func (RegisterDynamicScheduleArgs) InsertOpts() river.InsertOpts {
+	return river.InsertOpts{
+		Queue:       string(QueueDefault),
+		Priority:    int(PriorityNormal),
+		MaxAttempts: 3,
+		UniqueOpts: river.UniqueOpts{
+			ByArgs:   true,            // 防止相同调度重复注册
+			ByPeriod: 5 * time.Minute, // 5分钟内相同调度不重复注册
+		},
+	}
+}

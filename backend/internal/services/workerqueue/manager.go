@@ -135,6 +135,11 @@ type Manager struct {
 // NewManager creates a new worker manager with the given configuration
 // EmailSender can be nil for testing or when email functionality is not needed
 func NewManager(config Config, dbPool *pgxpool.Pool, logger *slog.Logger, emailSender EmailSender) (*Manager, error) {
+	return NewManagerWithIndexer(config, dbPool, logger, emailSender, nil)
+}
+
+// NewManagerWithIndexer creates a new worker manager with an optional EndpointIndexer for testing
+func NewManagerWithIndexer(config Config, dbPool *pgxpool.Pool, logger *slog.Logger, emailSender EmailSender, indexer EndpointIndexer) (*Manager, error) {
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -142,7 +147,14 @@ func NewManager(config Config, dbPool *pgxpool.Pool, logger *slog.Logger, emailS
 	workers := river.NewWorkers()
 
 	// Register all workers to satisfy River's requirement
-	river.AddWorker(workers, &TestWorker{logger: logger})
+	if indexer != nil {
+		// Use real IndexEndpointWorker if indexer is provided (for testing)
+		river.AddWorker(workers, NewIndexEndpointWorker(indexer, logger))
+	} else {
+		// Use TestWorker for production/default case
+		river.AddWorker(workers, &TestWorker{logger: logger})
+	}
+
 	river.AddWorker(workers, &StartRunWorker{logger: logger})
 	river.AddWorker(workers, &DeliverEventWorker{logger: logger})
 	river.AddWorker(workers, &InvokeDispatcherWorker{logger: logger})

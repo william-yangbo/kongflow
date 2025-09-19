@@ -19,34 +19,45 @@ kongflow/backend/
     │   ├── queries/                  # 共享查询
     │   │   ├── users.sql            # User 相关查询
     │   │   ├── organizations.sql    # Organization 相关查询
-    │   │   └── projects.sql         # Project 相关查询
+    │   │   ├── projects.sql         # Project 相关查询
+    │   │   └── runtime_environments.sql # RuntimeEnvironment 相关查询
     │   ├── db.go                     # SQLC生成
-    │   ├── models.go                 # 🔥 共享模型 (User, Organization, Project)
+    │   ├── models.go                 # 🔥 共享模型 (User, Organization, Project, RuntimeEnvironment)
     │   └── *.sql.go                  # 生成的查询方法
-    ├── secretstore/                  # SecretStore服务
-    │   ├── queries/                  # 专属SQL查询
-    │   │   └── secret_store.sql
-    │   ├── db.go                     # SQLC生成 (包隔离)
-    │   ├── models.go                 # 🔥 只包含SecretStore模型
-    │   ├── secret_store.sql.go
-    │   ├── repository.go             # 业务逻辑层 (组合 shared + 自己的查询)
-    │   └── service.go
-    ├── apiauth/                      # 🆕 ApiAuth服务 (trigger.dev对齐)
-    │   ├── queries/
-    │   │   ├── personal_tokens.sql  # PersonalAccessToken
-    │   │   └── api_keys.sql         # ApiKey
-    │   ├── db.go                     # SQLC生成
-    │   ├── models.go                 # 🔥 服务特定模型 (PersonalAccessToken, ApiKey)
-    │   ├── *.sql.go
-    │   └── service.go                # 业务逻辑 (组合 shared + apiauth 查询)
-    ├── apivote/                      # ApiVote服务
-    │   ├── queries/
-    │   │   └── api_vote.sql
-    │   ├── db.go                     # SQLC生成 (包隔离)
-    │   ├── models.go                 # 🔥 只包含ApiIntegrationVote模型
-    │   ├── api_vote.sql.go
-    │   └── service.go
-    └── ...                           # 其他服务
+    ├── services/                     # 🆕 服务层目录
+    │   ├── secretstore/              # SecretStore服务
+    │   │   ├── queries/              # 专属SQL查询
+    │   │   │   └── secret_store.sql
+    │   │   ├── db.go                 # SQLC生成 (包隔离)
+    │   │   ├── models.go             # 🔥 只包含SecretStore模型
+    │   │   ├── secret_store.sql.go
+    │   │   ├── repository.go         # 业务逻辑层 (组合 shared + 自己的查询)
+    │   │   └── service.go
+    │   ├── apiauth/                  # 🆕 ApiAuth服务 (trigger.dev对齐)
+    │   │   ├── queries/
+    │   │   │   ├── personal_tokens.sql  # PersonalAccessToken
+    │   │   │   └── api_keys.sql         # ApiKey
+    │   │   ├── db.go                 # SQLC生成
+    │   │   ├── models.go             # 🔥 服务特定模型 (PersonalAccessToken, ApiKey)
+    │   │   ├── *.sql.go
+    │   │   └── service.go            # 业务逻辑 (组合 shared + apiauth 查询)
+    │   ├── apivote/                  # ApiVote服务
+    │   │   ├── queries/
+    │   │   │   └── api_vote.sql
+    │   │   ├── db.go                 # SQLC生成 (包隔离)
+    │   │   ├── models.go             # 🔥 只包含ApiIntegrationVote模型
+    │   │   ├── api_vote.sql.go
+    │   │   └── service.go
+    │   ├── endpoints/                # 🆕 Endpoints服务 (当前实施中)
+    │   │   ├── queries/
+    │   │   │   ├── endpoints.sql     # Endpoint CRUD
+    │   │   │   └── endpoint_indexes.sql # EndpointIndex CRUD
+    │   │   ├── db.go                 # SQLC生成
+    │   │   ├── models.go             # 🔥 Endpoint, EndpointIndex 模型
+    │   │   ├── *.sql.go
+    │   │   ├── repository.go         # 数据访问层
+    │   │   └── service.go            # 业务逻辑 (集成 endpointApi + workerQueue)
+    │   └── ...                       # 其他已迁移服务 (analytics, auth, email, logger, ulid, workerqueue, endpointapi 等)
 ```
 
 ### 🎯 混合架构设计原则
@@ -81,24 +92,24 @@ kongflow/backend/
 
 ### 🚀 添加新服务流程
 
-#### 共享实体相关服务（如 ApiAuth）：
+#### 共享实体相关服务（如 ApiAuth, Endpoints）：
 
-1. **确定依赖**: 识别需要使用的共享实体 (User, Organization, Project)
-2. **创建服务目录**: `internal/newservice/`
-3. **创建查询目录**: `internal/newservice/queries/`
+1. **确定依赖**: 识别需要使用的共享实体 (User, Organization, Project, RuntimeEnvironment)
+2. **创建服务目录**: `internal/services/newservice/`
+3. **创建查询目录**: `internal/services/newservice/queries/`
 4. **添加迁移文件**: `db/migrations/xxx_newservice.sql`
 5. **更新 sqlc.yaml**: 添加服务配置 (包含 `omit_unused_structs: true`)
-6. **创建查询文件**: `internal/newservice/queries/newservice.sql`
+6. **创建查询文件**: `internal/services/newservice/queries/newservice.sql`
 7. **生成代码**: `sqlc generate`
 8. **组合使用**: 在业务逻辑中组合 `shared.Queries` + `newservice.Queries`
 
 #### 独立服务（如 SecretStore）：
 
-1. **创建服务目录**: `internal/newservice/`
-2. **创建查询目录**: `internal/newservice/queries/`
+1. **创建服务目录**: `internal/services/newservice/`
+2. **创建查询目录**: `internal/services/newservice/queries/`
 3. **添加迁移文件**: `db/migrations/xxx_newservice.sql`
 4. **更新 sqlc.yaml**: 添加服务配置 (包含 `omit_unused_structs: true`)
-5. **创建查询文件**: `internal/newservice/queries/newservice.sql`
+5. **创建查询文件**: `internal/services/newservice/queries/newservice.sql`
 6. **生成代码**: `sqlc generate`
 7. **验证模型**: 确认只生成相关表模型
 
