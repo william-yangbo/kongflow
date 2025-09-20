@@ -8,6 +8,19 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+// 外部账户表，对齐 trigger.dev ExternalAccount 模型
+type ExternalAccounts struct {
+	ID pgtype.UUID `json:"id"`
+	// 外部账户标识符，在环境内唯一
+	Identifier string `json:"identifier"`
+	// 外部账户元数据 JSON
+	Metadata       []byte             `json:"metadata"`
+	OrganizationID pgtype.UUID        `json:"organization_id"`
+	EnvironmentID  pgtype.UUID        `json:"environment_id"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Organizations struct {
 	ID        pgtype.UUID        `json:"id"`
 	Title     string             `json:"title"`

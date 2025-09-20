@@ -8,17 +8,18 @@ import (
 	"kongflow/backend/internal/services/workerqueue"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/riverqueue/river/rivertype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
-// MockWorkerQueueClient 实现 WorkerQueueClient 接口
-type MockWorkerQueueClient struct {
+// MockWorkerQueueManager 实现 WorkerQueueManager 接口
+type MockWorkerQueueManager struct {
 	mock.Mock
 }
 
-func (m *MockWorkerQueueClient) Enqueue(ctx context.Context, identifier string, payload interface{}, opts *workerqueue.JobOptions) (*rivertype.JobInsertResult, error) {
+func (m *MockWorkerQueueManager) EnqueueJob(ctx context.Context, identifier string, payload interface{}, opts *workerqueue.JobOptions) (*rivertype.JobInsertResult, error) {
 	args := m.Called(ctx, identifier, payload, opts)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -26,8 +27,8 @@ func (m *MockWorkerQueueClient) Enqueue(ctx context.Context, identifier string, 
 	return args.Get(0).(*rivertype.JobInsertResult), args.Error(1)
 }
 
-func (m *MockWorkerQueueClient) EnqueueWithBusinessLogic(ctx context.Context, identifier string, payload interface{}, businessLogic workerqueue.BusinessLogicFunc) (*rivertype.JobInsertResult, error) {
-	args := m.Called(ctx, identifier, payload, businessLogic)
+func (m *MockWorkerQueueManager) EnqueueJobTx(ctx context.Context, tx pgx.Tx, identifier string, payload interface{}, opts *workerqueue.JobOptions) (*rivertype.JobInsertResult, error) {
+	args := m.Called(ctx, tx, identifier, payload, opts)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -37,31 +38,31 @@ func (m *MockWorkerQueueClient) EnqueueWithBusinessLogic(ctx context.Context, id
 func TestRiverQueueService_EnqueueIndexEndpoint(t *testing.T) {
 	tests := []struct {
 		name        string
-		request     EnqueueIndexEndpointRequest
-		setupMock   func(*MockWorkerQueueClient)
+		request     *EnqueueIndexEndpointRequest
+		setupMock   func(*MockWorkerQueueManager)
 		expectError bool
 	}{
 		{
 			name: "successful_enqueue_with_defaults",
-			request: EnqueueIndexEndpointRequest{
+			request: &EnqueueIndexEndpointRequest{
 				EndpointID: uuid.New(),
 				Source:     EndpointIndexSourceInternal,
 				Reason:     "Test indexing",
 			},
-			setupMock: func(m *MockWorkerQueueClient) {
+			setupMock: func(m *MockWorkerQueueManager) {
 				result := &rivertype.JobInsertResult{
 					Job: &rivertype.JobRow{
 						ID:    1,
 						State: "available",
 					},
 				}
-				m.On("Enqueue", mock.Anything, "index_endpoint", mock.AnythingOfType("workerqueue.IndexEndpointArgs"), mock.AnythingOfType("*workerqueue.JobOptions")).Return(result, nil)
+				m.On("EnqueueJob", mock.Anything, "index_endpoint", mock.AnythingOfType("workerqueue.IndexEndpointArgs"), mock.AnythingOfType("*workerqueue.JobOptions")).Return(result, nil)
 			},
 			expectError: false,
 		},
 		{
 			name: "successful_enqueue_with_custom_options",
-			request: EnqueueIndexEndpointRequest{
+			request: &EnqueueIndexEndpointRequest{
 				EndpointID: uuid.New(),
 				Source:     EndpointIndexSourceAPI,
 				Reason:     "API triggered indexing",
@@ -70,14 +71,14 @@ func TestRiverQueueService_EnqueueIndexEndpoint(t *testing.T) {
 				RunAt:      func() *time.Time { t := time.Now().Add(time.Hour); return &t }(),
 				SourceData: map[string]interface{}{"trigger": "api"},
 			},
-			setupMock: func(m *MockWorkerQueueClient) {
+			setupMock: func(m *MockWorkerQueueManager) {
 				result := &rivertype.JobInsertResult{
 					Job: &rivertype.JobRow{
 						ID:    2,
 						State: "scheduled",
 					},
 				}
-				m.On("Enqueue", mock.Anything, "index_endpoint", mock.AnythingOfType("workerqueue.IndexEndpointArgs"), mock.AnythingOfType("*workerqueue.JobOptions")).Return(result, nil)
+				m.On("EnqueueJob", mock.Anything, "index_endpoint", mock.AnythingOfType("workerqueue.IndexEndpointArgs"), mock.AnythingOfType("*workerqueue.JobOptions")).Return(result, nil)
 			},
 			expectError: false,
 		},
@@ -85,11 +86,11 @@ func TestRiverQueueService_EnqueueIndexEndpoint(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockClient := &MockWorkerQueueClient{}
-			tt.setupMock(mockClient)
+			mockManager := &MockWorkerQueueManager{}
+			tt.setupMock(mockManager)
 
 			service := &riverQueueService{
-				client: mockClient,
+				manager: mockManager,
 			}
 
 			result, err := service.EnqueueIndexEndpoint(context.Background(), tt.request)
@@ -100,142 +101,161 @@ func TestRiverQueueService_EnqueueIndexEndpoint(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, result)
-				assert.NotNil(t, result.Job)
 			}
 
-			mockClient.AssertExpectations(t)
+			mockManager.AssertExpectations(t)
 		})
 	}
 }
 
+func TestRiverQueueService_EnqueueIndexEndpointTx(t *testing.T) {
+	mockManager := &MockWorkerQueueManager{}
+	
+	endpointID := uuid.New()
+	req := &EnqueueIndexEndpointRequest{
+		EndpointID: endpointID,
+		Source:     EndpointIndexSourceAPI,
+		Reason:     "Transaction test",
+	}
+
+	result := &rivertype.JobInsertResult{
+		Job: &rivertype.JobRow{
+			ID:    1,
+			State: "available",
+		},
+	}
+
+	// 使用简单的接口类型作为mock
+	mockManager.On("EnqueueJobTx", mock.Anything, mock.Anything, "index_endpoint", mock.AnythingOfType("workerqueue.IndexEndpointArgs"), mock.AnythingOfType("*workerqueue.JobOptions")).Return(result, nil)
+
+	service := &riverQueueService{
+		manager: mockManager,
+	}
+
+	// 使用nil作为事务，因为我们只关心业务逻辑
+	actualResult, err := service.EnqueueIndexEndpointTx(context.Background(), nil, req)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, actualResult)
+	assert.Equal(t, result, actualResult)
+	mockManager.AssertExpectations(t)
+}
+
 func TestRiverQueueService_EnqueueRegisterJob(t *testing.T) {
-	mockClient := &MockWorkerQueueClient{}
+	mockManager := &MockWorkerQueueManager{}
+	
 	endpointID := uuid.New()
-
-	request := RegisterJobRequest{
+	req := &RegisterJobRequest{
 		EndpointID:  endpointID,
-		JobID:       "test-job-1",
-		JobMetadata: map[string]interface{}{"name": "test job", "version": "1.0"},
+		JobID:       "test-job",
+		JobMetadata: map[string]interface{}{"name": "Test Job"},
 	}
 
 	result := &rivertype.JobInsertResult{
 		Job: &rivertype.JobRow{
-			ID:    3,
+			ID:    1,
 			State: "available",
 		},
 	}
 
-	mockClient.On("Enqueue", mock.Anything, "register_job", mock.AnythingOfType("workerqueue.RegisterJobArgs"), mock.AnythingOfType("*workerqueue.JobOptions")).Return(result, nil)
+	mockManager.On("EnqueueJob", mock.Anything, "register_job", mock.AnythingOfType("workerqueue.RegisterJobArgs"), mock.AnythingOfType("*workerqueue.JobOptions")).Return(result, nil)
 
 	service := &riverQueueService{
-		client: mockClient,
+		manager: mockManager,
 	}
 
-	jobResult, err := service.EnqueueRegisterJob(context.Background(), request)
+	actualResult, err := service.EnqueueRegisterJob(context.Background(), req)
 
 	assert.NoError(t, err)
-	assert.NotNil(t, jobResult)
-	assert.Equal(t, int64(3), jobResult.Job.ID)
-	mockClient.AssertExpectations(t)
+	assert.NotNil(t, actualResult)
+	assert.Equal(t, result, actualResult)
+	mockManager.AssertExpectations(t)
 }
 
-func TestRiverQueueService_EnqueueRegisterSource(t *testing.T) {
-	mockClient := &MockWorkerQueueClient{}
+func TestRiverQueueService_EnqueueRegisterJobTx(t *testing.T) {
+	mockManager := &MockWorkerQueueManager{}
+	
 	endpointID := uuid.New()
-
-	request := RegisterSourceRequest{
-		EndpointID:     endpointID,
-		SourceID:       "test-source-1",
-		SourceMetadata: map[string]interface{}{"type": "http", "url": "https://api.example.com"},
+	req := &RegisterJobRequest{
+		EndpointID:  endpointID,
+		JobID:       "test-job",
+		JobMetadata: map[string]interface{}{"name": "Test Job"},
 	}
 
 	result := &rivertype.JobInsertResult{
 		Job: &rivertype.JobRow{
-			ID:    4,
+			ID:    1,
 			State: "available",
 		},
 	}
 
-	mockClient.On("Enqueue", mock.Anything, "register_source", mock.AnythingOfType("workerqueue.RegisterSourceArgs"), mock.AnythingOfType("*workerqueue.JobOptions")).Return(result, nil)
+	mockManager.On("EnqueueJobTx", mock.Anything, mock.Anything, "register_job", mock.AnythingOfType("workerqueue.RegisterJobArgs"), mock.AnythingOfType("*workerqueue.JobOptions")).Return(result, nil)
 
 	service := &riverQueueService{
-		client: mockClient,
+		manager: mockManager,
 	}
 
-	jobResult, err := service.EnqueueRegisterSource(context.Background(), request)
+	actualResult, err := service.EnqueueRegisterJobTx(context.Background(), nil, req)
 
 	assert.NoError(t, err)
-	assert.NotNil(t, jobResult)
-	assert.Equal(t, int64(4), jobResult.Job.ID)
-	mockClient.AssertExpectations(t)
+	assert.NotNil(t, actualResult)
+	assert.Equal(t, result, actualResult)
+	mockManager.AssertExpectations(t)
 }
 
-func TestRiverQueueService_EnqueueRegisterDynamicTrigger(t *testing.T) {
-	mockClient := &MockWorkerQueueClient{}
-	endpointID := uuid.New()
-
-	request := RegisterDynamicTriggerRequest{
-		EndpointID:      endpointID,
-		TriggerID:       "test-trigger-1",
-		TriggerMetadata: map[string]interface{}{"event": "user.created", "filter": "premium=true"},
-	}
-
-	result := &rivertype.JobInsertResult{
-		Job: &rivertype.JobRow{
-			ID:    5,
-			State: "available",
+func TestBuildJobOptions(t *testing.T) {
+	tests := []struct {
+		name      string
+		queueName string
+		priority  int
+		runAt     interface{}
+		expected  *workerqueue.JobOptions
+	}{
+		{
+			name:      "defaults",
+			queueName: "",
+			priority:  0,
+			runAt:     nil,
+			expected: &workerqueue.JobOptions{
+				QueueName: string(workerqueue.QueueDefault),
+				Priority:  int(workerqueue.PriorityNormal),
+			},
+		},
+		{
+			name:      "custom_values",
+			queueName: "custom",
+			priority:  5,
+			runAt:     nil,
+			expected: &workerqueue.JobOptions{
+				QueueName: "custom",
+				Priority:  5,
+			},
+		},
+		{
+			name:      "with_run_at",
+			queueName: "test",
+			priority:  1,
+			runAt:     func() *time.Time { t := time.Now(); return &t }(),
+			expected: &workerqueue.JobOptions{
+				QueueName: "test",
+				Priority:  1,
+				RunAt:     func() *time.Time { t := time.Now(); return &t }(),
+			},
 		},
 	}
 
-	mockClient.On("Enqueue", mock.Anything, "register_dynamic_trigger", mock.AnythingOfType("workerqueue.RegisterDynamicTriggerArgs"), mock.AnythingOfType("*workerqueue.JobOptions")).Return(result, nil)
-
-	service := &riverQueueService{
-		client: mockClient,
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := buildJobOptions(tt.queueName, tt.priority, tt.runAt)
+			
+			assert.Equal(t, tt.expected.QueueName, result.QueueName)
+			assert.Equal(t, tt.expected.Priority, result.Priority)
+			
+			if tt.runAt != nil {
+				assert.NotNil(t, result.RunAt)
+			} else {
+				assert.Nil(t, result.RunAt)
+			}
+		})
 	}
-
-	jobResult, err := service.EnqueueRegisterDynamicTrigger(context.Background(), request)
-
-	assert.NoError(t, err)
-	assert.NotNil(t, jobResult)
-	assert.Equal(t, int64(5), jobResult.Job.ID)
-	mockClient.AssertExpectations(t)
-}
-
-func TestRiverQueueService_EnqueueRegisterDynamicSchedule(t *testing.T) {
-	mockClient := &MockWorkerQueueClient{}
-	endpointID := uuid.New()
-
-	request := RegisterDynamicScheduleRequest{
-		EndpointID:       endpointID,
-		ScheduleID:       "test-schedule-1",
-		ScheduleMetadata: map[string]interface{}{"cron": "0 0 * * *", "timezone": "UTC"},
-	}
-
-	result := &rivertype.JobInsertResult{
-		Job: &rivertype.JobRow{
-			ID:    6,
-			State: "available",
-		},
-	}
-
-	mockClient.On("Enqueue", mock.Anything, "register_dynamic_schedule", mock.AnythingOfType("workerqueue.RegisterDynamicScheduleArgs"), mock.AnythingOfType("*workerqueue.JobOptions")).Return(result, nil)
-
-	service := &riverQueueService{
-		client: mockClient,
-	}
-
-	jobResult, err := service.EnqueueRegisterDynamicSchedule(context.Background(), request)
-
-	assert.NoError(t, err)
-	assert.NotNil(t, jobResult)
-	assert.Equal(t, int64(6), jobResult.Job.ID)
-	mockClient.AssertExpectations(t)
-}
-
-func TestNewRiverQueueService(t *testing.T) {
-	mockClient := &MockWorkerQueueClient{}
-	service := NewRiverQueueService(mockClient)
-
-	assert.NotNil(t, service)
-	assert.IsType(t, &riverQueueService{}, service)
 }

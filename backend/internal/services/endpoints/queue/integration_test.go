@@ -180,10 +180,10 @@ func TestQueueOptionsConfiguration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockClient := &MockWorkerQueueClient{}
+			mockManager := &MockWorkerQueueManager{}
 
 			// 设置 mock 期望，验证正确的选项被传递
-			mockClient.On("Enqueue",
+			mockManager.On("EnqueueJob",
 				mock.Anything,
 				"index_endpoint",
 				mock.AnythingOfType("workerqueue.IndexEndpointArgs"),
@@ -202,12 +202,12 @@ func TestQueueOptionsConfiguration(t *testing.T) {
 				Job: &rivertype.JobRow{ID: 1, State: "available"},
 			}, nil)
 
-			service := &riverQueueService{client: mockClient}
+			service := &riverQueueService{manager: mockManager}
 
-			_, err := service.EnqueueIndexEndpoint(context.Background(), tt.request)
+			_, err := service.EnqueueIndexEndpoint(context.Background(), &tt.request)
 			assert.NoError(t, err)
 
-			mockClient.AssertExpectations(t)
+			mockManager.AssertExpectations(t)
 		})
 	}
 }

@@ -45,7 +45,7 @@ func TestRealEndpointQueueIntegration(t *testing.T) {
 		}
 
 		// Enqueue the indexing job using the queue service
-		result, err := harness.QueueService.EnqueueIndexEndpoint(ctx, req)
+		result, err := harness.QueueService.EnqueueIndexEndpoint(ctx, &req)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		assert.Greater(t, result.Job.ID, int64(0))
@@ -99,7 +99,7 @@ func TestRealEndpointQueueIntegration(t *testing.T) {
 				},
 			}
 
-			result, err := harness.QueueService.EnqueueIndexEndpoint(ctx, req)
+			result, err := harness.QueueService.EnqueueIndexEndpoint(ctx, &req)
 			require.NoError(t, err)
 			require.NotNil(t, result)
 
@@ -154,7 +154,7 @@ func TestRealEndpointQueueIntegration(t *testing.T) {
 		}
 
 		// Enqueue the delayed job
-		result, err := harness.QueueService.EnqueueIndexEndpoint(ctx, req)
+		result, err := harness.QueueService.EnqueueIndexEndpoint(ctx, &req)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 
@@ -203,7 +203,7 @@ func TestRealEndpointQueueIntegration(t *testing.T) {
 			},
 		}
 
-		result, err := harness.QueueService.EnqueueRegisterJob(ctx, jobReq)
+		result, err := harness.QueueService.EnqueueRegisterJob(ctx, &jobReq)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		assert.Greater(t, result.Job.ID, int64(0))
@@ -234,7 +234,7 @@ func TestRealEndpointQueueIntegration(t *testing.T) {
 			},
 		}
 
-		result, err := harness.QueueService.EnqueueRegisterSource(ctx, sourceReq)
+		result, err := harness.QueueService.EnqueueRegisterSource(ctx, &sourceReq)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		assert.Greater(t, result.Job.ID, int64(0))
@@ -272,7 +272,7 @@ func TestRealEndpointQueueIntegration(t *testing.T) {
 				},
 			}
 
-			_, err := harness.QueueService.EnqueueIndexEndpoint(ctx, req)
+			_, err := harness.QueueService.EnqueueIndexEndpoint(ctx, &req)
 			require.NoError(t, err)
 		}
 		enqueueTime := time.Since(startTime)
@@ -336,7 +336,7 @@ func TestEndpointQueueServiceErrorHandling(t *testing.T) {
 		}
 
 		// Enqueue the job that will fail
-		result, err := harness.QueueService.EnqueueIndexEndpoint(ctx, req)
+		result, err := harness.QueueService.EnqueueIndexEndpoint(ctx, &req)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 

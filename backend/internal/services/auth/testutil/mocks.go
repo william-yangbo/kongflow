@@ -45,6 +45,24 @@ func (m *MockQueries) CreateProject(ctx context.Context, arg shared.CreateProjec
 func (m *MockQueries) CreateRuntimeEnvironment(ctx context.Context, arg shared.CreateRuntimeEnvironmentParams) (shared.RuntimeEnvironments, error) {
 	return shared.RuntimeEnvironments{}, nil
 }
+
+// External Accounts stub implementations - 新增的外部账户相关方法
+func (m *MockQueries) CreateExternalAccount(ctx context.Context, arg shared.CreateExternalAccountParams) (shared.ExternalAccounts, error) {
+	return shared.ExternalAccounts{}, nil
+}
+func (m *MockQueries) FindExternalAccountByEnvAndIdentifier(ctx context.Context, arg shared.FindExternalAccountByEnvAndIdentifierParams) (shared.ExternalAccounts, error) {
+	return shared.ExternalAccounts{}, nil
+}
+func (m *MockQueries) GetExternalAccountByID(ctx context.Context, id pgtype.UUID) (shared.ExternalAccounts, error) {
+	return shared.ExternalAccounts{}, nil
+}
+func (m *MockQueries) ListExternalAccountsByEnvironment(ctx context.Context, arg shared.ListExternalAccountsByEnvironmentParams) ([]shared.ExternalAccounts, error) {
+	return []shared.ExternalAccounts{}, nil
+}
+func (m *MockQueries) UpdateExternalAccountMetadata(ctx context.Context, arg shared.UpdateExternalAccountMetadataParams) error {
+	return nil
+}
+
 func (m *MockQueries) FindOrganizationBySlug(ctx context.Context, slug string) (shared.Organizations, error) {
 	return shared.Organizations{}, nil
 }

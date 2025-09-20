@@ -9,6 +9,7 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -107,12 +108,21 @@ func (m *MockRepository) WithTx(ctx context.Context, fn func(Repository) error) 
 	return args.Error(0)
 }
 
+func (m *MockRepository) WithTxAndReturn(ctx context.Context, fn func(Repository, pgx.Tx) error) error {
+	args := m.Called(ctx, mock.AnythingOfType("func(endpoints.Repository, pgx.Tx) error"))
+	if fn != nil {
+		// 为了测试目的，我们可以传递一个模拟的事务
+		return fn(m, nil) // 传递nil作为模拟事务
+	}
+	return args.Error(0)
+}
+
 // MockQueueService 模拟队列服务
 type MockQueueService struct {
 	mock.Mock
 }
 
-func (m *MockQueueService) EnqueueIndexEndpoint(ctx context.Context, req queue.EnqueueIndexEndpointRequest) (*rivertype.JobInsertResult, error) {
+func (m *MockQueueService) EnqueueIndexEndpoint(ctx context.Context, req *queue.EnqueueIndexEndpointRequest) (*rivertype.JobInsertResult, error) {
 	args := m.Called(ctx, req)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -120,7 +130,7 @@ func (m *MockQueueService) EnqueueIndexEndpoint(ctx context.Context, req queue.E
 	return args.Get(0).(*rivertype.JobInsertResult), args.Error(1)
 }
 
-func (m *MockQueueService) EnqueueRegisterJob(ctx context.Context, req queue.RegisterJobRequest) (*rivertype.JobInsertResult, error) {
+func (m *MockQueueService) EnqueueRegisterJob(ctx context.Context, req *queue.RegisterJobRequest) (*rivertype.JobInsertResult, error) {
 	args := m.Called(ctx, req)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -128,7 +138,7 @@ func (m *MockQueueService) EnqueueRegisterJob(ctx context.Context, req queue.Reg
 	return args.Get(0).(*rivertype.JobInsertResult), args.Error(1)
 }
 
-func (m *MockQueueService) EnqueueRegisterSource(ctx context.Context, req queue.RegisterSourceRequest) (*rivertype.JobInsertResult, error) {
+func (m *MockQueueService) EnqueueRegisterSource(ctx context.Context, req *queue.RegisterSourceRequest) (*rivertype.JobInsertResult, error) {
 	args := m.Called(ctx, req)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -136,7 +146,7 @@ func (m *MockQueueService) EnqueueRegisterSource(ctx context.Context, req queue.
 	return args.Get(0).(*rivertype.JobInsertResult), args.Error(1)
 }
 
-func (m *MockQueueService) EnqueueRegisterDynamicTrigger(ctx context.Context, req queue.RegisterDynamicTriggerRequest) (*rivertype.JobInsertResult, error) {
+func (m *MockQueueService) EnqueueRegisterDynamicTrigger(ctx context.Context, req *queue.RegisterDynamicTriggerRequest) (*rivertype.JobInsertResult, error) {
 	args := m.Called(ctx, req)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -144,8 +154,49 @@ func (m *MockQueueService) EnqueueRegisterDynamicTrigger(ctx context.Context, re
 	return args.Get(0).(*rivertype.JobInsertResult), args.Error(1)
 }
 
-func (m *MockQueueService) EnqueueRegisterDynamicSchedule(ctx context.Context, req queue.RegisterDynamicScheduleRequest) (*rivertype.JobInsertResult, error) {
+func (m *MockQueueService) EnqueueRegisterDynamicSchedule(ctx context.Context, req *queue.RegisterDynamicScheduleRequest) (*rivertype.JobInsertResult, error) {
 	args := m.Called(ctx, req)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*rivertype.JobInsertResult), args.Error(1)
+}
+
+// 事务性队列方法
+func (m *MockQueueService) EnqueueIndexEndpointTx(ctx context.Context, tx pgx.Tx, req *queue.EnqueueIndexEndpointRequest) (*rivertype.JobInsertResult, error) {
+	args := m.Called(ctx, tx, req)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*rivertype.JobInsertResult), args.Error(1)
+}
+
+func (m *MockQueueService) EnqueueRegisterJobTx(ctx context.Context, tx pgx.Tx, req *queue.RegisterJobRequest) (*rivertype.JobInsertResult, error) {
+	args := m.Called(ctx, tx, req)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*rivertype.JobInsertResult), args.Error(1)
+}
+
+func (m *MockQueueService) EnqueueRegisterSourceTx(ctx context.Context, tx pgx.Tx, req *queue.RegisterSourceRequest) (*rivertype.JobInsertResult, error) {
+	args := m.Called(ctx, tx, req)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*rivertype.JobInsertResult), args.Error(1)
+}
+
+func (m *MockQueueService) EnqueueRegisterDynamicTriggerTx(ctx context.Context, tx pgx.Tx, req *queue.RegisterDynamicTriggerRequest) (*rivertype.JobInsertResult, error) {
+	args := m.Called(ctx, tx, req)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*rivertype.JobInsertResult), args.Error(1)
+}
+
+func (m *MockQueueService) EnqueueRegisterDynamicScheduleTx(ctx context.Context, tx pgx.Tx, req *queue.RegisterDynamicScheduleRequest) (*rivertype.JobInsertResult, error) {
+	args := m.Called(ctx, tx, req)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -304,7 +355,7 @@ func TestServiceBusinessLogic_QueueFailure(t *testing.T) {
 	mockRepo.On("GetEndpointByID", ctx, endpointID).Return(existingEndpoint, nil)
 
 	// 设置期望调用：队列入队失败
-	mockQueue.On("EnqueueIndexEndpoint", ctx, mock.AnythingOfType("queue.EnqueueIndexEndpointRequest")).
+	mockQueue.On("EnqueueIndexEndpoint", ctx, mock.AnythingOfType("*queue.EnqueueIndexEndpointRequest")).
 		Return(nil, errors.New("queue service down"))
 
 	// 执行测试
@@ -586,7 +637,7 @@ func TestServiceBusinessLogic_CreateEndpoint_PingSuccess(t *testing.T) {
 			ID: 12345,
 		},
 	}
-	mockQueue.On("EnqueueIndexEndpoint", ctx, mock.AnythingOfType("queue.EnqueueIndexEndpointRequest")).Return(mockJobResult, nil)
+	mockQueue.On("EnqueueIndexEndpoint", ctx, mock.AnythingOfType("*queue.EnqueueIndexEndpointRequest")).Return(mockJobResult, nil)
 
 	// 执行测试
 	result, err := service.CreateEndpoint(ctx, req)
@@ -638,7 +689,7 @@ func TestServiceBusinessLogic_IndexEndpoint_Success(t *testing.T) {
 			ID: 12345,
 		},
 	}
-	mockQueue.On("EnqueueIndexEndpoint", ctx, mock.AnythingOfType("queue.EnqueueIndexEndpointRequest")).Return(mockJobResult, nil)
+	mockQueue.On("EnqueueIndexEndpoint", ctx, mock.AnythingOfType("*queue.EnqueueIndexEndpointRequest")).Return(mockJobResult, nil)
 
 	// 执行测试
 	result, err := service.IndexEndpoint(ctx, req)

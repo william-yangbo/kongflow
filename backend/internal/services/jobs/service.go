@@ -2,13 +2,14 @@ package jobs
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"time"
 
+	"kongflow/backend/internal/services/apiauth"
+	"kongflow/backend/internal/services/events"
+
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // 常量定义，对齐 trigger.dev
@@ -187,18 +188,20 @@ type TestJobResponse struct {
 
 // service 实现
 type service struct {
-	repo   Repository
-	logger *slog.Logger
+	repo      Repository
+	eventsSvc events.Service
+	logger    *slog.Logger
 }
 
 // NewService 创建服务实例
-func NewService(repo Repository, logger *slog.Logger) Service {
+func NewService(repo Repository, eventsSvc events.Service, logger *slog.Logger) Service {
 	if logger == nil {
 		logger = slog.Default()
 	}
 	return &service{
-		repo:   repo,
-		logger: logger,
+		repo:      repo,
+		eventsSvc: eventsSvc,
+		logger:    logger,
 	}
 }
 
@@ -502,51 +505,77 @@ func (s *service) TestJob(ctx context.Context, req TestJobRequest) (*TestJobResp
 		return nil, fmt.Errorf("invalid event specification: missing name")
 	}
 
-	// 生成测试事件ID
-	eventID := uuid.New()
-
-	// 创建 EventRecord
-	payloadBytes, err := json.Marshal(req.Payload)
-	if err != nil {
-		logger.Error("Failed to marshal payload", "error", err)
-		return nil, fmt.Errorf("failed to marshal payload: %w", err)
+	// 获取事件源（可选）
+	eventSource := "trigger.dev"
+	if source, exists := eventSpec["source"].(string); exists && source != "" {
+		eventSource = source
 	}
 
+	// 生成测试事件ID
+	eventID := uuid.New().String()
+
+	// 构造事件上下文，标记为测试事件
 	contextData := map[string]interface{}{
 		"test":        true,
 		"job_version": version.Version,
-	}
-	contextBytes, err := json.Marshal(contextData)
-	if err != nil {
-		logger.Error("Failed to marshal context", "error", err)
-		return nil, fmt.Errorf("failed to marshal context: %w", err)
+		"source":      "job_test",
 	}
 
-	eventRecord, err := s.repo.CreateEventRecord(ctx, CreateEventRecordParams{
-		EventID:        eventID.String(),
-		Name:           eventName,
-		Source:         "test", // 测试来源
-		Payload:        payloadBytes,
-		Context:        contextBytes,
-		Timestamp:      pgtype.Timestamptz{Time: time.Now(), Valid: true},
-		EnvironmentID:  uuidToPgUUID(req.EnvironmentID),
-		OrganizationID: version.OrganizationID,
-		ProjectID:      version.ProjectID,
-		IsTest:         true,
-	})
+	// 使用 payload，如果没有则使用空 map
+	payload := req.Payload
+	if payload == nil {
+		payload = make(map[string]interface{})
+	}
+
+	// 创建发送事件请求
+	sendEventReq := &events.SendEventRequest{
+		ID:      eventID,
+		Name:    eventName,
+		Source:  eventSource,
+		Payload: payload,
+		Context: contextData,
+	}
+
+	// 创建发送事件选项
+	sendEventOpts := &events.SendEventOptions{
+		// 测试事件立即投递
+		DeliverAt: nil,
+	}
+
+	// 构造认证环境（需要从 EnvironmentID 获取）
+	// TODO: 这里需要从实际的环境服务获取环境信息
+	// 暂时使用模拟的环境信息
+	authenticatedEnv := &apiauth.AuthenticatedEnvironment{
+		Environment: apiauth.RuntimeEnvironment{
+			ID:             uuidToPgUUID(req.EnvironmentID),
+			OrganizationID: uuidToPgUUID(uuid.New()), // TODO: 从环境服务获取真实的组织ID
+			ProjectID:      uuidToPgUUID(uuid.New()), // TODO: 从环境服务获取真实的项目ID
+		},
+	}
+
+	// 通过 Events 服务创建事件记录
+	eventRecord, err := s.eventsSvc.IngestSendEvent(ctx, authenticatedEnv, sendEventReq, sendEventOpts)
 	if err != nil {
 		logger.Error("Failed to create event record", "error", err)
 		return nil, fmt.Errorf("failed to create event record: %w", err)
 	}
 
-	logger.Info("Job test completed",
-		"event_id", eventID.String(),
-		"event_record_id", eventRecord.ID.String(),
+	logger.Info("Job test completed successfully",
+		"event_id", eventRecord.EventID,
+		"event_record_id", eventRecord.ID,
+		"version_id", version.ID.String(),
 		"event_name", eventName)
 
+	// 解析事件记录ID为UUID
+	eventUUID, parseErr := uuid.Parse(eventRecord.EventID)
+	if parseErr != nil {
+		logger.Error("Failed to parse event ID", "error", parseErr)
+		return nil, fmt.Errorf("failed to parse event ID: %w", parseErr)
+	}
+
 	return &TestJobResponse{
-		RunID:   uuid.New(), // 临时生成，实际应该是创建的 run ID
-		EventID: eventID,
+		RunID:   uuid.New(), // TODO: 等待 Runs 服务集成后返回真实的 run ID
+		EventID: eventUUID,
 		Status:  "pending",
 		Message: "Test job submitted successfully",
 	}, nil

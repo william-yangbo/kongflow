@@ -10,22 +10,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5"
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivertype"
 	"github.com/stretchr/testify/require"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 
+	"kongflow/backend/internal/database"
 	"kongflow/backend/internal/services/workerqueue"
 	workertestutil "kongflow/backend/internal/services/workerqueue/testutil"
 )
 
 // EndpointQueueTestHarness provides a complete testing environment for endpoints queue with real River worker queue
 type EndpointQueueTestHarness struct {
-	// Database
-	Container testcontainers.Container
-	Pool      *pgxpool.Pool
+	// Database (using shared testhelper)
+	TestDB *database.TestDB
 
 	// Worker Queue
 	Manager *workerqueue.Manager
@@ -37,8 +35,8 @@ type EndpointQueueTestHarness struct {
 	MockIndexer *MockEndpointIndexer
 
 	// Test utilities
-	Logger  *slog.Logger
-	cleanup func()
+	Logger *slog.Logger
+	t      *testing.T // Keep reference to testing.T for cleanup
 }
 
 // EndpointTestSender extends TestEmailSender to handle endpoint indexing jobs
@@ -89,21 +87,19 @@ func (w *RegisterSourceMockWorker) Work(ctx context.Context, job *river.Job[work
 	return nil
 }
 
-// ManagerAdapter adapts workerqueue.Manager to implement WorkerQueueClient interface
+// ManagerAdapter adapts workerqueue.Manager to implement WorkerQueueManager interface
 type ManagerAdapter struct {
 	manager *workerqueue.Manager
 }
 
-// Enqueue implements WorkerQueueClient interface
-func (m *ManagerAdapter) Enqueue(ctx context.Context, identifier string, payload interface{}, opts *workerqueue.JobOptions) (*rivertype.JobInsertResult, error) {
+// EnqueueJob implements WorkerQueueManager interface
+func (m *ManagerAdapter) EnqueueJob(ctx context.Context, identifier string, payload interface{}, opts *workerqueue.JobOptions) (*rivertype.JobInsertResult, error) {
 	return m.manager.EnqueueJob(ctx, identifier, payload, opts)
 }
 
-// EnqueueWithBusinessLogic implements WorkerQueueClient interface
-// For this test adapter, we simply delegate to regular Enqueue
-func (m *ManagerAdapter) EnqueueWithBusinessLogic(ctx context.Context, identifier string, payload interface{}, businessLogic workerqueue.BusinessLogicFunc) (*rivertype.JobInsertResult, error) {
-	// For testing purposes, we ignore the business logic and just enqueue normally
-	return m.manager.EnqueueJob(ctx, identifier, payload, nil)
+// EnqueueJobTx implements WorkerQueueManager interface
+func (m *ManagerAdapter) EnqueueJobTx(ctx context.Context, tx pgx.Tx, identifier string, payload interface{}, opts *workerqueue.JobOptions) (*rivertype.JobInsertResult, error) {
+	return m.manager.EnqueueJobTx(ctx, tx, identifier, payload, opts)
 }
 
 // MockEndpointIndexer simulates endpoint indexing operations for testing
@@ -180,44 +176,8 @@ func SetupEndpointQueueTestHarness(t *testing.T) *EndpointQueueTestHarness {
 		Level: slog.LevelInfo,
 	}))
 
-	// Start PostgreSQL container
-	req := testcontainers.ContainerRequest{
-		Image:        "postgres:15-alpine",
-		ExposedPorts: []string{"5432/tcp"},
-		Env: map[string]string{
-			"POSTGRES_DB":       "test_endpoints_queue",
-			"POSTGRES_USER":     "test_user",
-			"POSTGRES_PASSWORD": "test_password",
-		},
-		WaitingFor: wait.ForListeningPort("5432/tcp").WithStartupTimeout(60 * time.Second),
-	}
-
-	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
-	require.NoError(t, err)
-
-	err = container.Start(ctx)
-	require.NoError(t, err)
-
-	// Get connection info
-	host, err := container.Host(ctx)
-	require.NoError(t, err)
-
-	port, err := container.MappedPort(ctx, "5432")
-	require.NoError(t, err)
-
-	// Build connection string
-	connStr := fmt.Sprintf("postgres://test_user:test_password@%s:%s/test_endpoints_queue?sslmode=disable", host, port.Port())
-
-	// Create connection pool
-	pool, err := pgxpool.New(ctx, connStr)
-	require.NoError(t, err)
-
-	// Test connection
-	err = pool.Ping(ctx)
-	require.NoError(t, err)
+	// Use shared testhelper to setup database with all migrations
+	testDB := database.SetupTestDB(t)
 
 	// Setup mock endpoint indexer
 	mockIndexer := &MockEndpointIndexer{
@@ -235,40 +195,26 @@ func SetupEndpointQueueTestHarness(t *testing.T) *EndpointQueueTestHarness {
 	config.EventsMaxWorkers = 1
 	config.MaintenanceMaxWorkers = 1
 
-	manager, err := workerqueue.NewManagerWithIndexer(config, pool, logger, testEmailSender, mockIndexer)
+	manager, err := workerqueue.NewManagerWithIndexer(config, testDB.Pool, logger, testEmailSender, mockIndexer)
 	require.NoError(t, err)
 
 	// Ensure River tables are created
 	err = manager.EnsureRiverTables(ctx)
 	require.NoError(t, err)
 
-	// Create adapter to make manager implement WorkerQueueClient interface
+	// Create adapter to make manager implement WorkerQueueManager interface
 	managerAdapter := &ManagerAdapter{manager: manager}
 
 	// Create queue service using the adapter
 	queueService := NewRiverQueueService(managerAdapter)
 
-	// Setup cleanup function
-	cleanup := func() {
-		if manager != nil {
-			_ = manager.Stop(ctx)
-		}
-		if pool != nil {
-			pool.Close()
-		}
-		if container != nil {
-			_ = container.Terminate(ctx)
-		}
-	}
-
 	return &EndpointQueueTestHarness{
-		Container:    container,
-		Pool:         pool,
+		TestDB:       testDB,
 		Manager:      manager,
 		QueueService: queueService,
 		MockIndexer:  mockIndexer,
 		Logger:       logger,
-		cleanup:      cleanup,
+		t:            t, // Save testing.T for cleanup
 	}
 }
 
@@ -295,8 +241,12 @@ func (th *EndpointQueueTestHarness) Stop(t *testing.T) {
 
 // Cleanup cleans up all resources
 func (th *EndpointQueueTestHarness) Cleanup() {
-	if th.cleanup != nil {
-		th.cleanup()
+	ctx := context.Background()
+	if th.Manager != nil {
+		_ = th.Manager.Stop(ctx)
+	}
+	if th.TestDB != nil && th.t != nil {
+		th.TestDB.Cleanup(th.t)
 	}
 }
 
@@ -330,7 +280,7 @@ func (th *EndpointQueueTestHarness) WaitForIndexOperations(t *testing.T, expecte
 			// Query the river_job table to count completed index_endpoint jobs with a shorter timeout
 			queryCtx, queryCancel := context.WithTimeout(context.Background(), 2*time.Second)
 			var count int
-			err := th.Pool.QueryRow(queryCtx,
+			err := th.TestDB.Pool.QueryRow(queryCtx,
 				"SELECT COUNT(*) FROM river_job WHERE kind = $1 AND state = $2",
 				"index_endpoint", "completed").Scan(&count)
 			queryCancel()
@@ -344,7 +294,7 @@ func (th *EndpointQueueTestHarness) WaitForIndexOperations(t *testing.T, expecte
 			if count > len(th.MockIndexer.IndexedEndpoints) {
 				// Query for details of newly completed jobs
 				queryCtx2, queryCancel2 := context.WithTimeout(context.Background(), 2*time.Second)
-				rows, err := th.Pool.Query(queryCtx2,
+				rows, err := th.TestDB.Pool.Query(queryCtx2,
 					"SELECT args FROM river_job WHERE kind = $1 AND state = $2 LIMIT $3 OFFSET $4",
 					"index_endpoint", "completed", count-len(th.MockIndexer.IndexedEndpoints), len(th.MockIndexer.IndexedEndpoints))
 				queryCancel2()
@@ -428,7 +378,7 @@ func (th *EndpointQueueTestHarness) ClearIndexOperations() {
 	defer cancel()
 
 	// Delete completed jobs to avoid interference between tests
-	_, err := th.Pool.Exec(ctx, "DELETE FROM river_job WHERE state = 'completed'")
+	_, err := th.TestDB.Pool.Exec(ctx, "DELETE FROM river_job WHERE state = 'completed'")
 	if err != nil {
 		th.Logger.Warn("Failed to clear completed jobs", "error", err)
 	}

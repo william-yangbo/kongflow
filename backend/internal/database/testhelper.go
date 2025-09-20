@@ -157,6 +157,8 @@ func getMigrationsDir() string {
 		filepath.Join(wd, "..", "db", "migrations"),
 		filepath.Join(wd, "..", "..", "db", "migrations"),
 		filepath.Join(wd, "..", "..", "..", "db", "migrations"),
+		filepath.Join(wd, "..", "..", "..", "..", "db", "migrations"),
+		filepath.Join(wd, "..", "..", "..", "..", "..", "db", "migrations"),
 	}
 
 	for _, path := range possiblePaths {
@@ -166,7 +168,7 @@ func getMigrationsDir() string {
 	}
 
 	// 默认返回相对路径
-	return "../../db/migrations"
+	return "../../../../db/migrations"
 }
 
 // getMigrationFiles 获取迁移目录下的所有.sql文件

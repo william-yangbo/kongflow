@@ -11,16 +11,11 @@ import (
 )
 
 type Querier interface {
-	CountEventRecordsByEnvironment(ctx context.Context, environmentID pgtype.UUID) (int64, error)
 	CountJobsByProject(ctx context.Context, projectID pgtype.UUID) (int64, error)
 	CountLaterJobVersions(ctx context.Context, arg CountLaterJobVersionsParams) (int64, error)
-	CountTestEventRecords(ctx context.Context, environmentID pgtype.UUID) (int64, error)
 	// event_examples.sql
 	// EventExample 事件示例相关查询
 	CreateEventExample(ctx context.Context, arg CreateEventExampleParams) (EventExamples, error)
-	// event_records.sql
-	// EventRecord 事件记录相关查询
-	CreateEventRecord(ctx context.Context, arg CreateEventRecordParams) (EventRecords, error)
 	// jobs.sql
 	// Job 作业相关查询，对齐 trigger.dev 的 Job 操作
 	CreateJob(ctx context.Context, arg CreateJobParams) (Jobs, error)
@@ -37,8 +32,6 @@ type Querier interface {
 	DeleteEventExample(ctx context.Context, id pgtype.UUID) error
 	DeleteEventExamplesByJobVersion(ctx context.Context, jobVersionID pgtype.UUID) error
 	DeleteEventExamplesNotInList(ctx context.Context, arg DeleteEventExamplesNotInListParams) error
-	DeleteEventRecord(ctx context.Context, id pgtype.UUID) error
-	DeleteEventRecordByEventID(ctx context.Context, arg DeleteEventRecordByEventIDParams) error
 	DeleteJob(ctx context.Context, id pgtype.UUID) error
 	DeleteJobAlias(ctx context.Context, id pgtype.UUID) error
 	DeleteJobAliasesByJob(ctx context.Context, jobID pgtype.UUID) error
@@ -46,8 +39,6 @@ type Querier interface {
 	DeleteJobVersion(ctx context.Context, id pgtype.UUID) error
 	GetEventExampleByID(ctx context.Context, id pgtype.UUID) (EventExamples, error)
 	GetEventExampleBySlug(ctx context.Context, arg GetEventExampleBySlugParams) (EventExamples, error)
-	GetEventRecordByEventID(ctx context.Context, arg GetEventRecordByEventIDParams) (EventRecords, error)
-	GetEventRecordByID(ctx context.Context, id pgtype.UUID) (EventRecords, error)
 	GetJobAliasByID(ctx context.Context, id pgtype.UUID) (JobAliases, error)
 	GetJobAliasByName(ctx context.Context, arg GetJobAliasByNameParams) (JobAliases, error)
 	GetJobByID(ctx context.Context, id pgtype.UUID) (Jobs, error)
@@ -59,15 +50,11 @@ type Querier interface {
 	GetLatestJobVersion(ctx context.Context, arg GetLatestJobVersionParams) (JobVersions, error)
 	IncrementJobCount(ctx context.Context, id pgtype.UUID) (JobQueues, error)
 	ListEventExamplesByJobVersion(ctx context.Context, jobVersionID pgtype.UUID) ([]EventExamples, error)
-	ListEventRecordsByEnvironment(ctx context.Context, arg ListEventRecordsByEnvironmentParams) ([]EventRecords, error)
-	ListEventRecordsByNameAndSource(ctx context.Context, arg ListEventRecordsByNameAndSourceParams) ([]EventRecords, error)
 	ListJobAliasesByJob(ctx context.Context, arg ListJobAliasesByJobParams) ([]JobAliases, error)
 	ListJobQueuesByEnvironment(ctx context.Context, arg ListJobQueuesByEnvironmentParams) ([]JobQueues, error)
 	ListJobVersionsByJob(ctx context.Context, arg ListJobVersionsByJobParams) ([]JobVersions, error)
 	ListJobsByOrganization(ctx context.Context, arg ListJobsByOrganizationParams) ([]Jobs, error)
 	ListJobsByProject(ctx context.Context, arg ListJobsByProjectParams) ([]Jobs, error)
-	ListTestEventRecords(ctx context.Context, arg ListTestEventRecordsParams) ([]EventRecords, error)
-	UpdateEventRecord(ctx context.Context, arg UpdateEventRecordParams) (EventRecords, error)
 	UpdateJob(ctx context.Context, arg UpdateJobParams) (Jobs, error)
 	UpdateJobQueueCounts(ctx context.Context, arg UpdateJobQueueCountsParams) (JobQueues, error)
 	UpdateJobVersionProperties(ctx context.Context, arg UpdateJobVersionPropertiesParams) (JobVersions, error)

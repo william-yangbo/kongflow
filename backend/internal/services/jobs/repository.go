@@ -61,19 +61,6 @@ type Repository interface {
 	DeleteEventExamplesByJobVersion(ctx context.Context, jobVersionID pgtype.UUID) error
 	DeleteEventExamplesNotInList(ctx context.Context, params DeleteEventExamplesNotInListParams) error
 
-	// EventRecord operations
-	CreateEventRecord(ctx context.Context, params CreateEventRecordParams) (EventRecords, error)
-	GetEventRecordByID(ctx context.Context, id pgtype.UUID) (EventRecords, error)
-	GetEventRecordByEventID(ctx context.Context, params GetEventRecordByEventIDParams) (EventRecords, error)
-	ListEventRecordsByEnvironment(ctx context.Context, params ListEventRecordsByEnvironmentParams) ([]EventRecords, error)
-	ListTestEventRecords(ctx context.Context, params ListTestEventRecordsParams) ([]EventRecords, error)
-	ListEventRecordsByNameAndSource(ctx context.Context, params ListEventRecordsByNameAndSourceParams) ([]EventRecords, error)
-	CountEventRecordsByEnvironment(ctx context.Context, environmentID pgtype.UUID) (int64, error)
-	CountTestEventRecords(ctx context.Context, environmentID pgtype.UUID) (int64, error)
-	UpdateEventRecord(ctx context.Context, params UpdateEventRecordParams) (EventRecords, error)
-	DeleteEventRecord(ctx context.Context, id pgtype.UUID) error
-	DeleteEventRecordByEventID(ctx context.Context, params DeleteEventRecordByEventIDParams) error
-
 	// Transaction support
 	WithTx(ctx context.Context, fn func(Repository) error) error
 }
@@ -294,50 +281,4 @@ func (r *repository) DeleteEventExamplesByJobVersion(ctx context.Context, jobVer
 
 func (r *repository) DeleteEventExamplesNotInList(ctx context.Context, params DeleteEventExamplesNotInListParams) error {
 	return r.queries.DeleteEventExamplesNotInList(ctx, params)
-}
-
-// EventRecord repository implementations
-
-func (r *repository) CreateEventRecord(ctx context.Context, params CreateEventRecordParams) (EventRecords, error) {
-	return r.queries.CreateEventRecord(ctx, params)
-}
-
-func (r *repository) GetEventRecordByID(ctx context.Context, id pgtype.UUID) (EventRecords, error) {
-	return r.queries.GetEventRecordByID(ctx, id)
-}
-
-func (r *repository) GetEventRecordByEventID(ctx context.Context, params GetEventRecordByEventIDParams) (EventRecords, error) {
-	return r.queries.GetEventRecordByEventID(ctx, params)
-}
-
-func (r *repository) ListEventRecordsByEnvironment(ctx context.Context, params ListEventRecordsByEnvironmentParams) ([]EventRecords, error) {
-	return r.queries.ListEventRecordsByEnvironment(ctx, params)
-}
-
-func (r *repository) ListTestEventRecords(ctx context.Context, params ListTestEventRecordsParams) ([]EventRecords, error) {
-	return r.queries.ListTestEventRecords(ctx, params)
-}
-
-func (r *repository) ListEventRecordsByNameAndSource(ctx context.Context, params ListEventRecordsByNameAndSourceParams) ([]EventRecords, error) {
-	return r.queries.ListEventRecordsByNameAndSource(ctx, params)
-}
-
-func (r *repository) CountEventRecordsByEnvironment(ctx context.Context, environmentID pgtype.UUID) (int64, error) {
-	return r.queries.CountEventRecordsByEnvironment(ctx, environmentID)
-}
-
-func (r *repository) CountTestEventRecords(ctx context.Context, environmentID pgtype.UUID) (int64, error) {
-	return r.queries.CountTestEventRecords(ctx, environmentID)
-}
-
-func (r *repository) UpdateEventRecord(ctx context.Context, params UpdateEventRecordParams) (EventRecords, error) {
-	return r.queries.UpdateEventRecord(ctx, params)
-}
-
-func (r *repository) DeleteEventRecord(ctx context.Context, id pgtype.UUID) error {
-	return r.queries.DeleteEventRecord(ctx, id)
-}
-
-func (r *repository) DeleteEventRecordByEventID(ctx context.Context, params DeleteEventRecordByEventIDParams) error {
-	return r.queries.DeleteEventRecordByEventID(ctx, params)
 }

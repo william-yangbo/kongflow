@@ -65,29 +65,6 @@ type EventExamples struct {
 	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
 }
 
-// 事件记录表，存储测试事件和实际事件记录
-type EventRecords struct {
-	ID pgtype.UUID `json:"id"`
-	// 事件唯一标识符
-	EventID string `json:"event_id"`
-	// 事件名称
-	Name string `json:"name"`
-	// 事件源，如 trigger.dev
-	Source string `json:"source"`
-	// 事件负载数据 JSON
-	Payload []byte `json:"payload"`
-	// 事件上下文数据 JSON
-	Context        []byte             `json:"context"`
-	Timestamp      pgtype.Timestamptz `json:"timestamp"`
-	EnvironmentID  pgtype.UUID        `json:"environment_id"`
-	OrganizationID pgtype.UUID        `json:"organization_id"`
-	ProjectID      pgtype.UUID        `json:"project_id"`
-	// 是否为测试事件
-	IsTest    bool               `json:"is_test"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
-}
-
 // Job 别名表，提供版本别名功能
 type JobAliases struct {
 	ID            pgtype.UUID        `json:"id"`

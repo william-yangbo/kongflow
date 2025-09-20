@@ -11,16 +11,21 @@ import (
 )
 
 type Querier interface {
+	CreateExternalAccount(ctx context.Context, arg CreateExternalAccountParams) (ExternalAccounts, error)
 	CreateOrganization(ctx context.Context, arg CreateOrganizationParams) (Organizations, error)
 	CreateProject(ctx context.Context, arg CreateProjectParams) (Projects, error)
 	CreateRuntimeEnvironment(ctx context.Context, arg CreateRuntimeEnvironmentParams) (RuntimeEnvironments, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (Users, error)
+	// external_accounts.sql
+	// External Accounts 共享查询，对齐 trigger.dev 访问模式
+	FindExternalAccountByEnvAndIdentifier(ctx context.Context, arg FindExternalAccountByEnvAndIdentifierParams) (ExternalAccounts, error)
 	FindOrganizationBySlug(ctx context.Context, slug string) (Organizations, error)
 	FindProjectBySlug(ctx context.Context, arg FindProjectBySlugParams) (Projects, error)
 	FindRuntimeEnvironmentByAPIKey(ctx context.Context, apiKey string) (RuntimeEnvironments, error)
 	FindRuntimeEnvironmentByPublicAPIKey(ctx context.Context, apiKey string) (RuntimeEnvironments, error)
 	FindUserByEmail(ctx context.Context, email string) (Users, error)
 	GetEnvironmentWithProjectAndOrg(ctx context.Context, id pgtype.UUID) (GetEnvironmentWithProjectAndOrgRow, error)
+	GetExternalAccountByID(ctx context.Context, id pgtype.UUID) (ExternalAccounts, error)
 	// Organizations queries - trigger.dev Organization entity alignment
 	GetOrganization(ctx context.Context, id pgtype.UUID) (Organizations, error)
 	// Projects queries - trigger.dev Project entity alignment
@@ -29,10 +34,12 @@ type Querier interface {
 	GetRuntimeEnvironment(ctx context.Context, id pgtype.UUID) (RuntimeEnvironments, error)
 	// Users queries - trigger.dev User entity alignment
 	GetUser(ctx context.Context, id pgtype.UUID) (Users, error)
+	ListExternalAccountsByEnvironment(ctx context.Context, arg ListExternalAccountsByEnvironmentParams) ([]ExternalAccounts, error)
 	ListOrganizations(ctx context.Context) ([]Organizations, error)
 	ListProjectsByOrganization(ctx context.Context, organizationID pgtype.UUID) ([]Projects, error)
 	ListRuntimeEnvironmentsByProject(ctx context.Context, projectID pgtype.UUID) ([]RuntimeEnvironments, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]Users, error)
+	UpdateExternalAccountMetadata(ctx context.Context, arg UpdateExternalAccountMetadataParams) error
 	UpdateOrganization(ctx context.Context, arg UpdateOrganizationParams) (Organizations, error)
 	UpdateProject(ctx context.Context, arg UpdateProjectParams) (Projects, error)
 	UpdateRuntimeEnvironment(ctx context.Context, arg UpdateRuntimeEnvironmentParams) (RuntimeEnvironments, error)

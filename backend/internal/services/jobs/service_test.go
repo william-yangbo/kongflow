@@ -6,6 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"kongflow/backend/internal/services/apiauth"
+	"kongflow/backend/internal/services/events"
+
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/assert"
@@ -89,6 +92,77 @@ func (m *MockRepository) ListJobVersionsByJob(ctx context.Context, params ListJo
 	args := m.Called(ctx, params)
 	return args.Get(0).([]JobVersions), args.Error(1)
 }
+
+// MockEventsService 是 Events 服务的模拟实现
+type MockEventsService struct {
+	mock.Mock
+}
+
+func (m *MockEventsService) IngestSendEvent(ctx context.Context, env *apiauth.AuthenticatedEnvironment,
+	event *events.SendEventRequest, opts *events.SendEventOptions) (*events.EventRecordResponse, error) {
+	args := m.Called(ctx, env, event, opts)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*events.EventRecordResponse), args.Error(1)
+}
+
+func (m *MockEventsService) DeliverEvent(ctx context.Context, eventID string) error {
+	args := m.Called(ctx, eventID)
+	return args.Error(0)
+}
+
+func (m *MockEventsService) InvokeDispatcher(ctx context.Context, dispatcherID string, eventRecordID string) error {
+	args := m.Called(ctx, dispatcherID, eventRecordID)
+	return args.Error(0)
+}
+
+func (m *MockEventsService) GetEventRecord(ctx context.Context, id string) (*events.EventRecordResponse, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*events.EventRecordResponse), args.Error(1)
+}
+
+func (m *MockEventsService) ListEventRecords(ctx context.Context, params events.ListEventRecordsParams) (*events.ListEventRecordsResponse, error) {
+	args := m.Called(ctx, params)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*events.ListEventRecordsResponse), args.Error(1)
+}
+
+func (m *MockEventsService) GetEventDispatcher(ctx context.Context, id string) (*events.EventDispatcherResponse, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*events.EventDispatcherResponse), args.Error(1)
+}
+
+func (m *MockEventsService) ListEventDispatchers(ctx context.Context, params events.ListEventDispatchersParams) (*events.ListEventDispatchersResponse, error) {
+	args := m.Called(ctx, params)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*events.ListEventDispatchersResponse), args.Error(1)
+}
+
+// 辅助函数：创建测试用的服务
+func createTestService() Service {
+	mockRepo := &MockRepository{}
+	mockEvents := &MockEventsService{}
+	return NewService(mockRepo, mockEvents, slog.Default())
+}
+
+func createTestServiceWithMocks() (Service, *MockRepository, *MockEventsService) {
+	mockRepo := &MockRepository{}
+	mockEvents := &MockEventsService{}
+	service := NewService(mockRepo, mockEvents, slog.Default())
+	return service, mockRepo, mockEvents
+}
+
 func (m *MockRepository) CountLaterJobVersions(ctx context.Context, params CountLaterJobVersionsParams) (int64, error) {
 	args := m.Called(ctx, params)
 	return args.Get(0).(int64), args.Error(1)
@@ -164,52 +238,6 @@ func (m *MockRepository) DeleteEventExamplesNotInList(ctx context.Context, param
 	return nil
 }
 
-// EventRecord mock methods
-func (m *MockRepository) CreateEventRecord(ctx context.Context, params CreateEventRecordParams) (EventRecords, error) {
-	args := m.Called(ctx, params)
-	return args.Get(0).(EventRecords), args.Error(1)
-}
-
-func (m *MockRepository) GetEventRecordByID(ctx context.Context, id pgtype.UUID) (EventRecords, error) {
-	return EventRecords{}, nil
-}
-
-func (m *MockRepository) GetEventRecordByEventID(ctx context.Context, params GetEventRecordByEventIDParams) (EventRecords, error) {
-	return EventRecords{}, nil
-}
-
-func (m *MockRepository) ListEventRecordsByEnvironment(ctx context.Context, params ListEventRecordsByEnvironmentParams) ([]EventRecords, error) {
-	return nil, nil
-}
-
-func (m *MockRepository) ListTestEventRecords(ctx context.Context, params ListTestEventRecordsParams) ([]EventRecords, error) {
-	return nil, nil
-}
-
-func (m *MockRepository) ListEventRecordsByNameAndSource(ctx context.Context, params ListEventRecordsByNameAndSourceParams) ([]EventRecords, error) {
-	return nil, nil
-}
-
-func (m *MockRepository) CountEventRecordsByEnvironment(ctx context.Context, environmentID pgtype.UUID) (int64, error) {
-	return 0, nil
-}
-
-func (m *MockRepository) CountTestEventRecords(ctx context.Context, environmentID pgtype.UUID) (int64, error) {
-	return 0, nil
-}
-
-func (m *MockRepository) UpdateEventRecord(ctx context.Context, params UpdateEventRecordParams) (EventRecords, error) {
-	return EventRecords{}, nil
-}
-
-func (m *MockRepository) DeleteEventRecord(ctx context.Context, id pgtype.UUID) error {
-	return nil
-}
-
-func (m *MockRepository) DeleteEventRecordByEventID(ctx context.Context, params DeleteEventRecordByEventIDParams) error {
-	return nil
-}
-
 // 测试辅助函数
 func createTestJob() Jobs {
 	now := pgtype.Timestamptz{Time: time.Now(), Valid: true}
@@ -262,7 +290,7 @@ func createTestJobQueue() JobQueues {
 
 func TestService_GetJob_Success(t *testing.T) {
 	mockRepo := &MockRepository{}
-	service := NewService(mockRepo, nil)
+	service := NewService(mockRepo, &MockEventsService{}, slog.Default())
 
 	jobID := uuid.New()
 	expectedJob := createTestJob()
@@ -282,7 +310,7 @@ func TestService_GetJob_Success(t *testing.T) {
 
 func TestService_GetJob_NotFound(t *testing.T) {
 	mockRepo := &MockRepository{}
-	service := NewService(mockRepo, nil)
+	service := NewService(mockRepo, &MockEventsService{}, slog.Default())
 
 	jobID := uuid.New()
 	mockRepo.On("GetJobByID", mock.Anything, uuidToPgUUID(jobID)).Return(Jobs{}, assert.AnError)
@@ -297,8 +325,7 @@ func TestService_GetJob_NotFound(t *testing.T) {
 }
 
 func TestService_TestJob_Success(t *testing.T) {
-	mockRepo := &MockRepository{}
-	service := NewService(mockRepo, nil)
+	service, mockRepo, mockEvents := createTestServiceWithMocks()
 
 	// 准备测试数据
 	versionID := uuid.New()
@@ -311,32 +338,16 @@ func TestService_TestJob_Success(t *testing.T) {
 	// 确保 EventSpecification 包含正确的 JSON
 	testVersion.EventSpecification = []byte(`{"name":"test.event","source":"api","type":"object"}`)
 
-	// 调试：检查 jsonbToMap 是否正常工作
-	eventSpec := jsonbToMap(testVersion.EventSpecification)
-	t.Logf("Parsed event specification: %+v", eventSpec)
-	if eventName, ok := eventSpec["name"].(string); ok {
-		t.Logf("Event name found: %s", eventName)
-	} else {
-		t.Logf("Event name not found or not string. Type: %T, Value: %v", eventSpec["name"], eventSpec["name"])
-	}
-
-	// 预期的 EventRecord
-	expectedEventRecord := EventRecords{
-		ID:             uuidToPgUUID(uuid.New()),
-		EventID:        uuid.New().String(),
-		Name:           "test.event",
-		Source:         "test",
-		EnvironmentID:  uuidToPgUUID(environmentID),
-		OrganizationID: testVersion.OrganizationID,
-		ProjectID:      testVersion.ProjectID,
-		IsTest:         true,
-		CreatedAt:      pgtype.Timestamptz{Time: time.Now(), Valid: true},
-		UpdatedAt:      pgtype.Timestamptz{Time: time.Now(), Valid: true},
-	}
-
-	// 设置 mock 期望
+	// 设置 Repository mock 期望
 	mockRepo.On("GetJobVersionByID", mock.Anything, uuidToPgUUID(versionID)).Return(testVersion, nil)
-	mockRepo.On("CreateEventRecord", mock.Anything, mock.AnythingOfType("CreateEventRecordParams")).Return(expectedEventRecord, nil)
+
+	// 设置 Events service mock 期望
+	mockEventRecord := &events.EventRecordResponse{
+		ID:      "test-record-id",
+		EventID: uuid.New().String(),
+	}
+	mockEvents.On("IngestSendEvent", mock.Anything, mock.AnythingOfType("*apiauth.AuthenticatedEnvironment"),
+		mock.AnythingOfType("*events.SendEventRequest"), mock.AnythingOfType("*events.SendEventOptions")).Return(mockEventRecord, nil)
 
 	// 构建请求
 	request := TestJobRequest{
@@ -357,6 +368,7 @@ func TestService_TestJob_Success(t *testing.T) {
 	assert.Equal(t, "Test job submitted successfully", result.Message)
 
 	mockRepo.AssertExpectations(t)
+	mockEvents.AssertExpectations(t)
 }
 
 func TestHelpers_UUID_Conversion(t *testing.T) {
@@ -387,7 +399,7 @@ func TestHelpers_JSONB_Conversion(t *testing.T) {
 
 func TestService_RegisterJob_Success(t *testing.T) {
 	mockRepo := &MockRepository{}
-	service := NewService(mockRepo, nil)
+	service := NewService(mockRepo, &MockEventsService{}, slog.Default())
 
 	endpointID := uuid.New()
 	request := RegisterJobRequest{
@@ -434,7 +446,7 @@ func TestService_RegisterJob_Success(t *testing.T) {
 
 func TestService_RegisterJob_ValidationError(t *testing.T) {
 	mockRepo := &MockRepository{}
-	service := NewService(mockRepo, nil)
+	service := NewService(mockRepo, &MockEventsService{}, slog.Default())
 
 	endpointID := uuid.New()
 	invalidRequest := RegisterJobRequest{
@@ -452,7 +464,7 @@ func TestService_RegisterJob_ValidationError(t *testing.T) {
 
 func TestService_GetJobBySlug_Success(t *testing.T) {
 	mockRepo := &MockRepository{}
-	service := NewService(mockRepo, slog.Default())
+	service := NewService(mockRepo, &MockEventsService{}, slog.Default())
 
 	projectID := uuid.New()
 	slug := "test-job"
@@ -472,7 +484,7 @@ func TestService_GetJobBySlug_Success(t *testing.T) {
 
 func TestService_ListJobs_Success(t *testing.T) {
 	mockRepo := &MockRepository{}
-	service := NewService(mockRepo, nil)
+	service := NewService(mockRepo, &MockEventsService{}, slog.Default())
 
 	projectID := uuid.New()
 	params := ListJobsParams{
@@ -500,7 +512,7 @@ func TestService_ListJobs_Success(t *testing.T) {
 
 func TestService_DeleteJob_Success(t *testing.T) {
 	mockRepo := &MockRepository{}
-	service := NewService(mockRepo, nil)
+	service := NewService(mockRepo, &MockEventsService{}, slog.Default())
 
 	jobID := uuid.New()
 	mockRepo.On("DeleteJob", mock.Anything, mock.Anything).Return(nil)
@@ -513,7 +525,7 @@ func TestService_DeleteJob_Success(t *testing.T) {
 
 func TestService_GetJobVersion_Success(t *testing.T) {
 	mockRepo := &MockRepository{}
-	service := NewService(mockRepo, nil)
+	service := NewService(mockRepo, &MockEventsService{}, slog.Default())
 
 	versionID := uuid.New()
 	expectedVersion := createTestJobVersion()
@@ -533,7 +545,7 @@ func TestService_GetJobVersion_Success(t *testing.T) {
 
 func TestService_ListJobVersions_Success(t *testing.T) {
 	mockRepo := &MockRepository{}
-	service := NewService(mockRepo, nil)
+	service := NewService(mockRepo, &MockEventsService{}, slog.Default())
 
 	jobID := uuid.New()
 	expectedVersions := []JobVersions{createTestJobVersion(), createTestJobVersion()}
@@ -552,7 +564,7 @@ func TestService_ListJobVersions_Success(t *testing.T) {
 
 func TestService_CreateJobQueue_Success(t *testing.T) {
 	mockRepo := &MockRepository{}
-	service := NewService(mockRepo, nil)
+	service := NewService(mockRepo, &MockEventsService{}, slog.Default())
 
 	request := CreateJobQueueRequest{
 		Name:          "test-queue",
@@ -578,7 +590,7 @@ func TestService_CreateJobQueue_Success(t *testing.T) {
 
 func TestService_CreateJobQueue_DefaultMaxJobs(t *testing.T) {
 	mockRepo := &MockRepository{}
-	service := NewService(mockRepo, nil)
+	service := NewService(mockRepo, &MockEventsService{}, slog.Default())
 
 	request := CreateJobQueueRequest{
 		Name:          "test-queue",
@@ -602,7 +614,7 @@ func TestService_CreateJobQueue_DefaultMaxJobs(t *testing.T) {
 
 func TestService_GetJobQueue_Success(t *testing.T) {
 	mockRepo := &MockRepository{}
-	service := NewService(mockRepo, nil)
+	service := NewService(mockRepo, &MockEventsService{}, slog.Default())
 
 	environmentID := uuid.New()
 	queueName := "test-queue"
@@ -622,7 +634,7 @@ func TestService_GetJobQueue_Success(t *testing.T) {
 
 func TestService_TestJob_InvalidEventSpecification(t *testing.T) {
 	mockRepo := &MockRepository{}
-	service := NewService(mockRepo, nil)
+	service := NewService(mockRepo, &MockEventsService{}, slog.Default())
 
 	versionID := uuid.New()
 	environmentID := uuid.New()
@@ -692,7 +704,7 @@ func TestService_ErrorHandling_RepositoryFailures(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockRepo := &MockRepository{}
-			service := NewService(mockRepo, nil)
+			service := NewService(mockRepo, &MockEventsService{}, slog.Default())
 			tt.testFunc(mockRepo, service)
 			mockRepo.AssertExpectations(t)
 		})

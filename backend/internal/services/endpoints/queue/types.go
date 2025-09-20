@@ -6,20 +6,26 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/riverqueue/river/rivertype"
 )
 
 // QueueService 端点队列服务接口
 // 基于现有的 workerqueue 包，提供端点特定的队列操作
 type QueueService interface {
-	// 端点相关队列操作
-	EnqueueIndexEndpoint(ctx context.Context, req EnqueueIndexEndpointRequest) (*rivertype.JobInsertResult, error)
+	// 标准队列操作
+	EnqueueIndexEndpoint(ctx context.Context, req *EnqueueIndexEndpointRequest) (*rivertype.JobInsertResult, error)
+	EnqueueRegisterJob(ctx context.Context, req *RegisterJobRequest) (*rivertype.JobInsertResult, error)
+	EnqueueRegisterSource(ctx context.Context, req *RegisterSourceRequest) (*rivertype.JobInsertResult, error)
+	EnqueueRegisterDynamicTrigger(ctx context.Context, req *RegisterDynamicTriggerRequest) (*rivertype.JobInsertResult, error)
+	EnqueueRegisterDynamicSchedule(ctx context.Context, req *RegisterDynamicScheduleRequest) (*rivertype.JobInsertResult, error)
 
-	// 注册相关队列操作
-	EnqueueRegisterJob(ctx context.Context, req RegisterJobRequest) (*rivertype.JobInsertResult, error)
-	EnqueueRegisterSource(ctx context.Context, req RegisterSourceRequest) (*rivertype.JobInsertResult, error)
-	EnqueueRegisterDynamicTrigger(ctx context.Context, req RegisterDynamicTriggerRequest) (*rivertype.JobInsertResult, error)
-	EnqueueRegisterDynamicSchedule(ctx context.Context, req RegisterDynamicScheduleRequest) (*rivertype.JobInsertResult, error)
+	// 事务性队列操作
+	EnqueueIndexEndpointTx(ctx context.Context, tx pgx.Tx, req *EnqueueIndexEndpointRequest) (*rivertype.JobInsertResult, error)
+	EnqueueRegisterJobTx(ctx context.Context, tx pgx.Tx, req *RegisterJobRequest) (*rivertype.JobInsertResult, error)
+	EnqueueRegisterSourceTx(ctx context.Context, tx pgx.Tx, req *RegisterSourceRequest) (*rivertype.JobInsertResult, error)
+	EnqueueRegisterDynamicTriggerTx(ctx context.Context, tx pgx.Tx, req *RegisterDynamicTriggerRequest) (*rivertype.JobInsertResult, error)
+	EnqueueRegisterDynamicScheduleTx(ctx context.Context, tx pgx.Tx, req *RegisterDynamicScheduleRequest) (*rivertype.JobInsertResult, error)
 }
 
 // EndpointIndexSource 端点索引来源枚举 (对齐trigger.dev)

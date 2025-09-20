@@ -33,6 +33,7 @@ type Repository interface {
 
 	// 事务支持
 	WithTx(ctx context.Context, fn func(Repository) error) error
+	WithTxAndReturn(ctx context.Context, fn func(Repository, pgx.Tx) error) error
 }
 
 // repository 实现
@@ -69,6 +70,36 @@ func (r *repository) WithTx(ctx context.Context, fn func(Repository) error) erro
 	}
 
 	err = fn(txRepo)
+	if err != nil {
+		if rbErr := tx.Rollback(ctx); rbErr != nil {
+			return err // 返回原始错误
+		}
+		return err
+	}
+
+	return tx.Commit(ctx)
+}
+
+// WithTxAndReturn 事务执行（带事务对象返回）
+func (r *repository) WithTxAndReturn(ctx context.Context, fn func(Repository, pgx.Tx) error) error {
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if p := recover(); p != nil {
+			tx.Rollback(ctx)
+			panic(p)
+		}
+	}()
+
+	txRepo := &repository{
+		queries: New(tx),
+		db:      r.db,
+	}
+
+	err = fn(txRepo, tx)
 	if err != nil {
 		if rbErr := tx.Rollback(ctx); rbErr != nil {
 			return err // 返回原始错误

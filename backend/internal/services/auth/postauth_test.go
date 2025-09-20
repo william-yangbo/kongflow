@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"kongflow/backend/internal/services/auth/testutil"
 	"kongflow/backend/internal/services/logger"
 	"kongflow/backend/internal/services/workerqueue"
 	"kongflow/backend/internal/shared"
@@ -39,7 +40,7 @@ func MockJobInsertResult() *rivertype.JobInsertResult {
 }
 
 func TestPostAuthProcessor_Creation(t *testing.T) {
-	mockAnalytics := &MockAnalyticsService{}
+	mockAnalytics := &testutil.MockAnalyticsService{}
 	logger := logger.New("test-auth")
 	mockWorkerQueue := &MockWorkerQueueManager{}
 
@@ -52,7 +53,7 @@ func TestPostAuthProcessor_Creation(t *testing.T) {
 }
 
 func TestPostAuthProcessor_PostAuthentication_NewUser(t *testing.T) {
-	mockAnalytics := &MockAnalyticsService{}
+	mockAnalytics := &testutil.MockAnalyticsService{}
 	logger := logger.New("test-auth")
 	mockWorkerQueue := &MockWorkerQueueManager{}
 
@@ -97,7 +98,7 @@ func TestPostAuthProcessor_PostAuthentication_NewUser(t *testing.T) {
 }
 
 func TestPostAuthProcessor_PostAuthentication_ExistingUser(t *testing.T) {
-	mockAnalytics := &MockAnalyticsService{}
+	mockAnalytics := &testutil.MockAnalyticsService{}
 	logger := logger.New("test-auth")
 	mockWorkerQueue := &MockWorkerQueueManager{}
 
@@ -132,7 +133,7 @@ func TestPostAuthProcessor_PostAuthentication_ExistingUser(t *testing.T) {
 }
 
 func TestPostAuthProcessor_PostAuthentication_WithAnalyticsError(t *testing.T) {
-	mockAnalytics := &MockAnalyticsService{}
+	mockAnalytics := &testutil.MockAnalyticsService{}
 	logger := logger.New("test-auth")
 	mockWorkerQueue := &MockWorkerQueueManager{}
 
@@ -167,7 +168,7 @@ func TestPostAuthProcessor_PostAuthentication_WithAnalyticsError(t *testing.T) {
 }
 
 func TestPostAuthProcessor_PostAuthentication_WithWorkerQueueError(t *testing.T) {
-	mockAnalytics := &MockAnalyticsService{}
+	mockAnalytics := &testutil.MockAnalyticsService{}
 	logger := logger.New("test-auth")
 	mockWorkerQueue := &MockWorkerQueueManager{}
 

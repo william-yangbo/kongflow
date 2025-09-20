@@ -226,7 +226,7 @@ func (s *service) enqueueIndexEndpoint(ctx context.Context, endpointID uuid.UUID
 		Reason:     reason,
 	}
 
-	return s.queueService.EnqueueIndexEndpoint(ctx, req)
+	return s.queueService.EnqueueIndexEndpoint(ctx, &req)
 } // UpsertEndpoint 创建或更新端点 (对齐trigger.dev endpoint.upsert)
 func (s *service) UpsertEndpoint(ctx context.Context, req UpsertEndpointRequest) (*EndpointResponse, error) {
 	logger := s.logger.With("operation", "upsert_endpoint", "slug", req.Slug, "url", req.URL)
